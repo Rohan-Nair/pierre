@@ -1,7 +1,12 @@
-export function createFakeContentStream(data: string) {
+import { queueRender } from '../UnversialRenderer';
+
+export function createFakeContentStream(data: string, letterByLetter = false) {
   return new ReadableStream<string>({
     start(controller) {
       const randomizedData = (() => {
+        if (letterByLetter) {
+          return data.match(/.{1,4}/gs) ?? [];
+        }
         const chunks: string[] = [];
         let remaining = data;
         while (remaining.length > 0) {
@@ -16,18 +21,24 @@ export function createFakeContentStream(data: string) {
         const nextData = randomizedData.shift();
         if (nextData == null) {
           controller.close();
-          if (timeout != null) {
-            clearTimeout(timeout);
-          }
           return;
         }
         controller.enqueue(nextData);
-        if (timeout != null) {
-          clearTimeout(timeout);
+
+        if (letterByLetter) {
+          return pushNext;
+        } else {
+          if (timeout != null) {
+            clearTimeout(timeout);
+          }
+          timeout = setTimeout(pushNext, Math.random() + 100);
         }
-        timeout = setTimeout(pushNext, Math.random() + 100);
       }
-      pushNext();
+      if (letterByLetter) {
+        queueRender(pushNext);
+      } else {
+        pushNext();
+      }
     },
   });
 }

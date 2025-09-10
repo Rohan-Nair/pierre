@@ -12,17 +12,20 @@ async function startStreaming(event: MouseEvent) {
   }
   const instance = new CodeRenderer(createFakeContentStream(testContent), {
     lang: 'typescript',
-    theme: 'tokyo-night',
+    themes: { dark: 'tokyo-night', light: 'vitesse-light' },
     defaultColor: false,
   });
 
   instance.setup(wrapper);
 
-  const instance2 = new CodeRenderer(createFakeContentStream(testContent2), {
-    lang: 'markdown',
-    themes: { dark: 'min-dark', light: 'min-light' },
-    defaultColor: false,
-  });
+  const instance2 = new CodeRenderer(
+    createFakeContentStream(testContent2, true),
+    {
+      lang: 'markdown',
+      themes: { dark: 'solarized-dark', light: 'solarized-light' },
+      defaultColor: false,
+    }
+  );
   instance2.setup(wrapper);
 }
 
