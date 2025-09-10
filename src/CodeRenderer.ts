@@ -13,6 +13,7 @@ import {
   createWrapperNodes,
 } from './utils/html_render_utils';
 import type { BundledLanguage, BundledTheme } from 'shiki';
+import { queueRender } from './UnversialRenderer';
 
 interface CodeTokenOptionsBase {
   lang: BundledLanguage;
@@ -86,18 +87,8 @@ export class CodeRenderer {
   currentLineElement: HTMLElement | undefined;
   handleWrite = async (token: ThemedToken | RecallToken) => {
     this.queuedTokens.push(token);
-    this.queueRenderUpdate();
+    queueRender(this.render);
   };
-
-  renderId: number | null = null;
-  queueRenderUpdate() {
-    if (this.renderId != null) {
-      return;
-    }
-    // TODO: Perhaps turn this into a universial requestAnimationFrame for all
-    // CodeRenderer instances
-    this.renderId = requestAnimationFrame(this.render);
-  }
 
   private queuedTokens: (ThemedToken | RecallToken)[] = [];
   render = () => {
@@ -136,7 +127,6 @@ export class CodeRenderer {
       window.scrollTo({ top: document.body.scrollHeight });
     }
 
-    this.renderId = null;
     this.queuedTokens.length = 0;
   };
 
