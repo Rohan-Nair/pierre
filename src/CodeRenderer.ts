@@ -133,7 +133,7 @@ export class CodeRenderer {
     }
 
     if (isScrolledToBottom) {
-      window.scrollTo(0, document.body.scrollHeight);
+      window.scrollTo({ top: document.body.scrollHeight });
     }
 
     this.renderId = null;

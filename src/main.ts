@@ -1,5 +1,6 @@
 import './style.css';
 import testContent from './tests/example.txt?raw';
+import testContent2 from './tests/example2.txt?raw';
 import { createFakeContentStream } from './utils/fakeContentStream';
 import { CodeRenderer } from './CodeRenderer';
 
@@ -20,14 +21,27 @@ async function renderChunk(event: MouseEvent) {
   );
 
   instance.setup(wrapper);
+
+  const instance2 = new CodeRenderer(
+    createFakeContentStream(testContent2),
+    {
+      lang: 'markdown',
+      themes: { dark: 'tokyo-night', light: 'min-light' },
+      defaultColor: false,
+    },
+    { langs: ['markdown'], themes: ['min-light', 'tokyo-night'] }
+  );
+  instance2.setup(wrapper);
 }
 
 const toggleTheme = document.getElementById('toggle-theme');
 if (toggleTheme != null) {
   toggleTheme.addEventListener('click', () => {
-    const code = document.querySelector('[data-theme]');
-    if (!(code instanceof HTMLElement)) return;
-    code.dataset.theme = code.dataset.theme === 'light' ? 'dark' : 'light';
+    const codes = document.querySelectorAll('[data-theme]');
+    for (const code of codes) {
+      if (!(code instanceof HTMLElement)) return;
+      code.dataset.theme = code.dataset.theme === 'light' ? 'dark' : 'light';
+    }
   });
 }
 
