@@ -27,17 +27,19 @@ export async function getSharedHighlighter({
   preferJSHighlighter = false,
 }: HighlighterOptions) {
   if (highlighter == null) {
+    // NOTE(amadeus): We should probably build in some logic for rejection
+    // handling...
     highlighter = new Promise((resolve) => {
       (preferJSHighlighter ? Promise.resolve() : loadWasm(import('shiki/wasm')))
-        .then(() =>
-          createHighlighter({
+        .then(() => {
+          return createHighlighter({
             themes,
             langs,
             engine: preferJSHighlighter
               ? createJavaScriptRegexEngine()
               : createOnigurumaEngine(),
-          })
-        )
+          });
+        })
         .then((instance) => {
           for (const theme of themes) {
             loadedThemes.add(theme);

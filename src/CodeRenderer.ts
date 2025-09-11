@@ -18,6 +18,12 @@ interface CodeTokenOptionsBase {
   defaultColor?: StringLiteralUnion<'light' | 'dark'> | 'light-dark()' | false;
   preferJSHighlighter?: boolean;
   startingLineIndex?: number;
+
+  onStart?(controller: WritableStreamDefaultController): unknown;
+  onWrite?(token: ThemedToken | RecallToken): unknown;
+  onClose?(): unknown;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  onAbort?(reason: any): unknown;
 }
 
 interface CodeTokenOptionsSingleTheme extends CodeTokenOptionsBase {
@@ -48,6 +54,7 @@ export class CodeRenderer {
   }
 
   async setup(wrapper: HTMLElement) {
+    const { onStart, onClose, onAbort } = this.options;
     this.highlighter = await getSharedHighlighter(this.getHighlighterOptions());
     const { pre, code } = createWrapperNodes(this.highlighter);
     this.pre = pre;
@@ -63,9 +70,15 @@ export class CodeRenderer {
       )
       .pipeTo(
         new WritableStream({
-          start() {},
-          close() {},
-          abort() {},
+          start(controller) {
+            onStart?.(controller);
+          },
+          close() {
+            onClose?.();
+          },
+          abort(reason) {
+            onAbort?.(reason);
+          },
           write: this.handleWrite,
         })
       );
@@ -81,6 +94,7 @@ export class CodeRenderer {
       this.queuedTokens.push(token);
     }
     queueRender(this.render);
+    this.options.onWrite?.(token);
   };
 
   currentLineIndex: number;

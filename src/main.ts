@@ -3,6 +3,7 @@ import testContent from './tests/example.txt?raw';
 import testContent2 from './tests/example2.txt?raw';
 import { createFakeContentStream } from './utils/fakeContentStream';
 import { CodeRenderer } from './CodeRenderer';
+import { disposeHighlighter } from './SharedHighlighter';
 
 async function startStreaming(event: MouseEvent) {
   const wrapper = document.getElementById('content');
@@ -10,10 +11,18 @@ async function startStreaming(event: MouseEvent) {
   if (event.currentTarget instanceof HTMLElement) {
     event.currentTarget.parentNode?.removeChild(event.currentTarget);
   }
+  let completed = 0;
+  const onClose = () => {
+    completed++;
+    if (completed >= 2) {
+      disposeHighlighter();
+    }
+  };
   const instance = new CodeRenderer(createFakeContentStream(testContent), {
     lang: 'typescript',
     themes: { dark: 'tokyo-night', light: 'vitesse-light' },
     defaultColor: false,
+    onClose,
   });
 
   instance.setup(wrapper);
@@ -24,6 +33,7 @@ async function startStreaming(event: MouseEvent) {
       lang: 'markdown',
       themes: { dark: 'solarized-dark', light: 'solarized-light' },
       defaultColor: false,
+      onClose,
     }
   );
   instance2.setup(wrapper);
