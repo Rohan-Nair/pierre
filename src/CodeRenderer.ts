@@ -19,11 +19,14 @@ interface CodeTokenOptionsBase {
   preferJSHighlighter?: boolean;
   startingLineIndex?: number;
 
-  onStart?(controller: WritableStreamDefaultController): unknown;
-  onWrite?(token: ThemedToken | RecallToken): unknown;
-  onClose?(): unknown;
+  onPreRender?(instance: CodeRenderer): unknown;
+  onPostRender?(instance: CodeRenderer): unknown;
+
+  onStreamStart?(controller: WritableStreamDefaultController): unknown;
+  onStreamWrite?(token: ThemedToken | RecallToken): unknown;
+  onStreamClose?(): unknown;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  onAbort?(reason: any): unknown;
+  onStreamAbort?(reason: any): unknown;
 }
 
 interface CodeTokenOptionsSingleTheme extends CodeTokenOptionsBase {
@@ -40,12 +43,16 @@ type CodeRendererOptions =
   | CodeTokenOptionsSingleTheme
   | CodeTokenOptionsMultiThemes;
 
+// Something to think about here -- might be worth not forcing a renderer to
+// take a stream right off the bat, and instead allow it to get the highlighter
+// and everything setup ASAP, and allow setup the ability to pass a
+// ReadableStream to it...
 export class CodeRenderer {
   highlighter: HighlighterGeneric<BundledLanguage, BundledTheme> | undefined;
   options: CodeRendererOptions;
   stream: ReadableStream<string>;
-  private pre: HTMLPreElement = document.createElement('pre');
-  private code: HTMLElement = document.createElement('code');
+  pre: HTMLPreElement = document.createElement('pre');
+  code: HTMLElement = document.createElement('code');
 
   constructor(stream: ReadableStream<string>, options: CodeRendererOptions) {
     this.stream = stream;
@@ -53,9 +60,16 @@ export class CodeRenderer {
     this.currentLineIndex = this.options.startingLineIndex ?? 1;
   }
 
-  async setup(wrapper: HTMLElement) {
-    const { onStart, onClose, onAbort } = this.options;
+  async initializeHighlighter() {
     this.highlighter = await getSharedHighlighter(this.getHighlighterOptions());
+    return this.highlighter;
+  }
+
+  async setup(wrapper: HTMLElement) {
+    const { onStreamStart, onStreamClose, onStreamAbort } = this.options;
+    if (this.highlighter == null) {
+      this.highlighter = await this.initializeHighlighter();
+    }
     const { pre, code } = createWrapperNodes(this.highlighter);
     this.pre = pre;
     wrapper.appendChild(this.pre);
@@ -71,13 +85,13 @@ export class CodeRenderer {
       .pipeTo(
         new WritableStream({
           start(controller) {
-            onStart?.(controller);
+            onStreamStart?.(controller);
           },
           close() {
-            onClose?.();
+            onStreamClose?.();
           },
           abort(reason) {
-            onAbort?.(reason);
+            onStreamAbort?.(reason);
           },
           write: this.handleWrite,
         })
@@ -94,15 +108,13 @@ export class CodeRenderer {
       this.queuedTokens.push(token);
     }
     queueRender(this.render);
-    this.options.onWrite?.(token);
+    this.options.onStreamWrite?.(token);
   };
 
-  currentLineIndex: number;
-  currentLineElement: HTMLElement | undefined;
+  private currentLineIndex: number;
+  private currentLineElement: HTMLElement | undefined;
   render = () => {
-    const isScrolledToBottom =
-      this.pre.scrollTop + this.pre.clientHeight >= this.pre.scrollHeight - 1;
-
+    this.options.onPreRender?.(this);
     for (const token of this.queuedTokens) {
       if ('recall' in token) {
         if (this.currentLineElement == null) {
@@ -112,7 +124,7 @@ export class CodeRenderer {
         }
         if (token.recall > this.currentLineElement.childNodes.length) {
           throw new Error(
-            'Whoopsie, recal is larger than the line... probably a bug...'
+            'Whoopsie, recall is larger than the line... probably a bug...'
           );
         }
         for (let i = 0; i < token.recall; i++) {
@@ -130,12 +142,8 @@ export class CodeRenderer {
         }
       }
     }
-
-    if (isScrolledToBottom) {
-      this.pre.scrollTop = this.pre.scrollHeight;
-    }
-
     this.queuedTokens.length = 0;
+    this.options.onPostRender?.(this);
   };
 
   private createLine() {

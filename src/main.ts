@@ -3,7 +3,33 @@ import testContent from './tests/example.txt?raw';
 import testContent2 from './tests/example2.txt?raw';
 import { createFakeContentStream } from './utils/fakeContentStream';
 import { CodeRenderer } from './CodeRenderer';
-import { disposeHighlighter } from './SharedHighlighter';
+import { createScrollFixer } from './utils/createScrollFixer';
+import { createHighlighterCleanup } from './utils/createHighlighterCleanup';
+
+const CODE = [
+  {
+    content: testContent,
+    letterByLetter: false,
+    options: {
+      lang: 'typescript',
+      themes: { dark: 'tokyo-night', light: 'vitesse-light' },
+      defaultColor: false,
+      ...createScrollFixer(),
+      ...createHighlighterCleanup(),
+    } as const,
+  },
+  {
+    content: testContent2,
+    letterByLetter: true,
+    options: {
+      lang: 'markdown',
+      themes: { dark: 'solarized-dark', light: 'solarized-light' },
+      defaultColor: false,
+      ...createScrollFixer(),
+      ...createHighlighterCleanup(),
+    } as const,
+  },
+] as const;
 
 async function startStreaming(event: MouseEvent) {
   const wrapper = document.getElementById('content');
@@ -11,32 +37,13 @@ async function startStreaming(event: MouseEvent) {
   if (event.currentTarget instanceof HTMLElement) {
     event.currentTarget.parentNode?.removeChild(event.currentTarget);
   }
-  let completed = 0;
-  const onClose = () => {
-    completed++;
-    if (completed >= 2) {
-      disposeHighlighter();
-    }
-  };
-  const instance = new CodeRenderer(createFakeContentStream(testContent), {
-    lang: 'typescript',
-    themes: { dark: 'tokyo-night', light: 'vitesse-light' },
-    defaultColor: false,
-    onClose,
-  });
-
-  instance.setup(wrapper);
-
-  const instance2 = new CodeRenderer(
-    createFakeContentStream(testContent2, true),
-    {
-      lang: 'markdown',
-      themes: { dark: 'solarized-dark', light: 'solarized-light' },
-      defaultColor: false,
-      onClose,
-    }
-  );
-  instance2.setup(wrapper);
+  for (const { content, letterByLetter, options } of CODE) {
+    const instance = new CodeRenderer(
+      createFakeContentStream(content, letterByLetter),
+      options
+    );
+    instance.setup(wrapper);
+  }
 }
 
 document.getElementById('toggle-theme')?.addEventListener('click', () => {
