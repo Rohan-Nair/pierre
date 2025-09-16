@@ -15,7 +15,7 @@ import { queueRender } from './UnversialRenderer';
 import { getSharedHighlighter } from './SharedHighlighter';
 
 interface CodeTokenOptionsBase {
-  lang: BundledLanguage;
+  lang?: BundledLanguage;
   defaultColor?: StringLiteralUnion<'light' | 'dark'> | 'light-dark()' | false;
   preferWasmHighlighter?: boolean;
   startingLineIndex?: number;
@@ -193,7 +193,10 @@ export class CodeRenderer {
       theme,
       preferWasmHighlighter,
     } = this.options;
-    const langs: BundledLanguage[] = [lang];
+    const langs: BundledLanguage[] = [];
+    if (lang != null) {
+      langs.push(lang);
+    }
     const themes: BundledTheme[] = [];
     if (theme != null) {
       themes.push(theme);

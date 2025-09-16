@@ -23,7 +23,9 @@ function handlePreload() {
     const langs: BundledLanguage[] = [];
     const themes: BundledTheme[] = [];
     for (const item of CodeConfigs) {
-      langs.push(item.options.lang);
+      if ('lang' in item.options) {
+        langs.push(item.options.lang);
+      }
       if ('themes' in item.options) {
         themes.push(item.options.themes.dark);
         themes.push(item.options.themes.light);
