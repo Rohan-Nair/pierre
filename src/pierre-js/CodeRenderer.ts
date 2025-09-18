@@ -484,7 +484,10 @@ function createEmptyRowBuffer(size: number): Element {
   return {
     tagName: 'div',
     type: 'element',
-    properties: { 'data-buffer': '', style: `grid-row: span ${size}` },
+    properties: {
+      'data-buffer': '',
+      style: `grid-row: span ${size};min-height:calc(${size} * 1lh)`,
+    },
     children: [],
   };
 }

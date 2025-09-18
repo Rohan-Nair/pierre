@@ -76,3 +76,24 @@ const loadDiff = document.getElementById('load-diff');
 if (loadDiff != null) {
   loadDiff.addEventListener('click', renderDiff);
 }
+
+const wrapCheckbox = document.getElementById('wrap-lines');
+if (wrapCheckbox != null) {
+  wrapCheckbox.addEventListener('change', ({ currentTarget }) => {
+    if (!(currentTarget instanceof HTMLInputElement)) {
+      return;
+    }
+    const { checked } = currentTarget;
+    const elements = document.querySelectorAll('[data-overflow]');
+    for (const element of elements) {
+      if (!(element instanceof HTMLElement)) {
+        continue;
+      }
+      if (checked) {
+        element.dataset.overflow = 'wrap';
+      } else {
+        element.dataset.overflow = 'scroll';
+      }
+    }
+  });
+}
