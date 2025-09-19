@@ -93,7 +93,7 @@ export class DiffRenderer {
     this.options = options;
   }
 
-  async initializeHighlighter() {
+  private async initializeHighlighter() {
     this.highlighter = await getSharedHighlighter(this.getHighlighterOptions());
     return this.highlighter;
   }
@@ -122,7 +122,7 @@ export class DiffRenderer {
     this.setupDiff(wrapper, source, this.highlighter, decorations);
   }
 
-  setupDiff(
+  private setupDiff(
     wrapper: HTMLPreElement,
     diff: FileMetadata,
     highlighter: HighlighterGeneric<BundledLanguage, BundledTheme>,
@@ -191,7 +191,7 @@ export class DiffRenderer {
     }
   }
 
-  createHastOptions(
+  private createHastOptions(
     transformer: ShikiTransformer,
     decorations?: DecorationItem[]
   ): CodeToHastTheme | CodeToHastThemes {
@@ -217,7 +217,7 @@ export class DiffRenderer {
     throw new Error();
   }
 
-  renderHunk({
+  private renderHunk({
     hunk,
     highlighter,
     state,
@@ -292,7 +292,7 @@ export class DiffRenderer {
     }
   }
 
-  getNodesToRender(nodes: Root) {
+  private getNodesToRender(nodes: Root) {
     let firstChild: RootContent | Element | Root | null = nodes.children[0];
     while (firstChild != null) {
       if (firstChild.type === 'element' && firstChild.tagName === 'code') {

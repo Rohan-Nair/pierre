@@ -44,10 +44,6 @@ export type CodeRendererOptions =
   | CodeTokenOptionsSingleTheme
   | CodeTokenOptionsMultiThemes;
 
-// Something to think about here -- might be worth not forcing a renderer to
-// take a stream right off the bat, and instead allow it to get the highlighter
-// and everything setup ASAP, and allow setup the ability to pass a
-// ReadableStream to it...
 export class CodeRenderer {
   highlighter: HighlighterGeneric<BundledLanguage, BundledTheme> | undefined;
   options: CodeRendererOptions;
@@ -60,7 +56,7 @@ export class CodeRenderer {
     this.currentLineIndex = this.options.startingLineIndex ?? 1;
   }
 
-  async initializeHighlighter() {
+  private async initializeHighlighter() {
     this.highlighter = await getSharedHighlighter(this.getHighlighterOptions());
     return this.highlighter;
   }
@@ -80,12 +76,12 @@ export class CodeRenderer {
 
     const [source, wrapper] = this.queuedSetupArgs;
     this.queuedSetupArgs = undefined;
-    this.setupStream(wrapper, source, this.highlighter);
+    this.setupStream(source, wrapper, this.highlighter);
   }
 
-  setupStream(
-    wrapper: HTMLPreElement,
+  private setupStream(
     stream: ReadableStream<string>,
+    wrapper: HTMLPreElement,
     highlighter: HighlighterGeneric<BundledLanguage, BundledTheme>
   ) {
     const { themes, theme } = this.options;
@@ -106,10 +102,10 @@ export class CodeRenderer {
     this.stream
       .pipeThrough(
         new CodeToTokenTransformStream({
+          ...this.options,
           highlighter,
           allowRecalls: true,
           cssVariablePrefix: formatCSSVariablePrefix(),
-          ...this.options,
         })
       )
       .pipeTo(
@@ -129,7 +125,7 @@ export class CodeRenderer {
   }
 
   private queuedTokens: (ThemedToken | RecallToken)[] = [];
-  handleWrite = async (token: ThemedToken | RecallToken) => {
+  private handleWrite = async (token: ThemedToken | RecallToken) => {
     // If we've recalled tokens we haven't rendered yet, we can just yeet them
     // and never apply them
     if ('recall' in token && this.queuedTokens.length >= token.recall) {
@@ -143,7 +139,7 @@ export class CodeRenderer {
 
   private currentLineIndex: number;
   private currentLineElement: HTMLElement | undefined;
-  render = () => {
+  private render = () => {
     this.options.onPreRender?.(this);
     const linesToAppend: HTMLElement[] = [];
     for (const token of this.queuedTokens) {
