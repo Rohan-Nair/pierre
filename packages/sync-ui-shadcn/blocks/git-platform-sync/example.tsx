@@ -1,5 +1,0 @@
-import { GitPlatformSync } from '@/registry/new-york/blocks/git-platform-sync/git-platform-sync';
-
-export default function Page() {
-  return <GitPlatformSync />;
-}

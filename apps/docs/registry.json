@@ -12,11 +12,6 @@
       "dependencies": ["@pierre/sync-ui-core", "@pierre/sync-ui-hooks"],
       "files": [
         {
-          "path": "registry/new-york/blocks/git-platform-sync/example.tsx",
-          "type": "registry:page",
-          "target": "components/examples/git-platform-sync/page.tsx"
-        },
-        {
           "path": "registry/new-york/blocks/git-platform-sync/git-platform-sync.tsx",
           "type": "registry:component"
         }
