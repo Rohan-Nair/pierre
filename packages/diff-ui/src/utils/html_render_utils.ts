@@ -2,6 +2,7 @@ import {
   type BundledLanguage,
   type BundledTheme,
   type HighlighterGeneric,
+  type ThemeRegistrationResolved,
   type ThemedToken,
   getTokenStyleObject,
   stringifyTokenStyle,
@@ -14,16 +15,6 @@ import type {
   ThemeModes,
   ThemesType,
 } from '../types';
-
-interface ThemeVariant {
-  themes?: never;
-  theme: BundledTheme;
-}
-
-interface ThemesVariant {
-  themes: ThemesType;
-  theme?: never;
-}
 
 export function createSpanFromToken(token: ThemedToken) {
   const element = document.createElement('span');
@@ -49,28 +40,16 @@ export function createRow(line: number) {
   return { row, content };
 }
 
-interface SetupWrapperBase {
+interface SetupWrapperNodesProps {
+  theme?: BundledTheme;
+  themes?: ThemesType;
   pre: HTMLPreElement;
   highlighter: HighlighterGeneric<BundledLanguage, BundledTheme>;
-  split?: boolean;
-  wrap?: boolean;
-  themeMode?: ThemeModes;
-}
-
-interface SetupWrapperTheme extends ThemeVariant, SetupWrapperBase {}
-
-interface SetupWrapperThemes extends ThemesVariant, SetupWrapperBase {}
-
-type SetupWrapperNodesProps = SetupWrapperTheme | SetupWrapperThemes;
-
-export function setupPreNode(props: SetupWrapperNodesProps) {
-  const { pre } = props;
-  // Clean out container
-  pre.innerHTML = '';
-  pre.tabIndex = 0;
-  pre.dataset.pjs = '';
-  setWrapperProps(props);
-  return pre;
+  split: boolean;
+  wrap: boolean;
+  themeMode: ThemeModes;
+  diffIndicators: 'bars' | 'classic' | 'none';
+  disableBackground: boolean;
 }
 
 interface CreateCodeNodeProps {
@@ -101,7 +80,35 @@ interface GetHighlighterThemeStylesProps {
   prefix?: string;
 }
 
-function getHighlighterThemeStyles({
+function getThemeVariables(
+  themeData: ThemeRegistrationResolved,
+  prefix?: string,
+  modePrefix?: string
+) {
+  modePrefix = modePrefix != null ? `${modePrefix}-` : '';
+  let styles = '';
+  const additionGreen =
+    themeData.colors?.['gitDecoration.addedResourceForeground'] ??
+    themeData.colors?.['terminal.ansiGreen'];
+  if (additionGreen != null) {
+    styles += `${formatCSSVariablePrefix(prefix)}${modePrefix}addition-color:${additionGreen};`;
+  }
+  const deletionRed =
+    themeData.colors?.['gitDecoration.deletedResourceForeground'] ??
+    themeData.colors?.['terminal.ansiRed'];
+  if (deletionRed != null) {
+    styles += `${formatCSSVariablePrefix(prefix)}${modePrefix}deletion-color:${deletionRed};`;
+  }
+  const modifiedBlue =
+    themeData.colors?.['gitDecoration.modifiedResourceForeground'] ??
+    themeData.colors?.['terminal.ansiBlue'];
+  if (modifiedBlue != null) {
+    styles += `${formatCSSVariablePrefix(prefix)}${modePrefix}modified-color:${modifiedBlue};`;
+  }
+  return styles;
+}
+
+export function getHighlighterThemeStyles({
   theme,
   themes,
   highlighter,
@@ -114,36 +121,33 @@ function getHighlighterThemeStyles({
     styles += `background-color:${themeData.bg};`;
     styles += `${formatCSSVariablePrefix(prefix)}fg:${themeData.fg};`;
     styles += `${formatCSSVariablePrefix(prefix)}bg:${themeData.bg};`;
+    styles += getThemeVariables(themeData, prefix);
   } else if (themes != null) {
     let themeData = highlighter.getTheme(themes.dark);
     styles += `${formatCSSVariablePrefix(prefix)}dark:${themeData.fg};`;
     styles += `${formatCSSVariablePrefix(prefix)}dark-bg:${themeData.bg};`;
+    styles += getThemeVariables(themeData, prefix, 'dark');
 
     themeData = highlighter.getTheme(themes.light);
     styles += `${formatCSSVariablePrefix(prefix)}light:${themeData.fg};`;
     styles += `${formatCSSVariablePrefix(prefix)}light-bg:${themeData.bg};`;
+    styles += getThemeVariables(themeData, prefix, 'light');
   }
   return styles;
 }
 
-function setWrapperProps(
-  {
-    pre,
-    highlighter,
-    theme,
-    themes,
-    split = false,
-    wrap = false,
-    themeMode = 'system',
-  }: SetupWrapperNodesProps,
-  prefix?: string
-) {
-  const styles = getHighlighterThemeStyles({
-    theme,
-    themes,
-    highlighter,
-    prefix,
-  });
+export function setWrapperProps({
+  pre,
+  highlighter,
+  theme,
+  themes,
+  split,
+  wrap,
+  themeMode,
+  diffIndicators,
+  disableBackground,
+}: SetupWrapperNodesProps) {
+  const styles = getHighlighterThemeStyles({ theme, themes, highlighter });
   if (themeMode === 'system') {
     delete pre.dataset.themeMode;
   } else {
@@ -153,9 +157,26 @@ function setWrapperProps(
     const themeData = highlighter.getTheme(theme);
     pre.dataset.themeMode = themeData.type;
   }
+  switch (diffIndicators) {
+    case 'bars':
+    case 'classic':
+      pre.dataset.indicators = diffIndicators;
+      break;
+    case 'none':
+      delete pre.dataset.indicators;
+      break;
+  }
+  if (disableBackground) {
+    delete pre.dataset.background;
+  } else {
+    pre.dataset.background = '';
+  }
   pre.dataset.type = split ? 'split' : 'file';
   pre.dataset.overflow = wrap ? 'wrap' : 'scroll';
+  pre.dataset.pjs = '';
+  pre.tabIndex = 0;
   pre.style = styles;
+  return pre;
 }
 
 export function formatCSSVariablePrefix(prefix: string = 'pjs') {
@@ -224,7 +245,7 @@ export function renderFileHeader({
   const useEl = createSVGElement('use');
   useEl.setAttribute('href', getIconForType(file.type));
   icon.appendChild(useEl);
-  icon.dataset.changeIcon = '';
+  icon.dataset.changeIcon = file.type;
   content.appendChild(icon);
 
   const title = document.createElement('div');

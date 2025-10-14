@@ -3,11 +3,6 @@
   --pjs-fg: #000;
   --pjs-gap: 8px;
   --pjs-gap-inline: 12px;
-  --pjs-additions-color: rgb(0, 255, 0);
-  --pjs-additions-color: #2ca94c;
-  --pjs-deletions-color: rgb(255, 0, 0);
-  --pjs-deletions-color: #ff3b30;
-  --pjs-annotations-color: rgb(255, 255, 0);
   --pjs-tab-size: 2;
   --pjs-font-fallback:
     'SF Mono', Monaco, Consolas, 'Ubuntu Mono', 'Liberation Mono',
@@ -27,16 +22,17 @@ code {
 }
 
 *,
-*:before,
-*:after {
+*::before,
+*::after {
   font-family: var(--pjs-font-family, var(--pjs-font-fallback));
   font-size: var(--pjs-font-size, 14px);
   line-height: var(--pjs-line-height, 20px);
+  font-feature-settings: var(--pjs-font-features);
 }
 
 [data-pjs-header] *,
-[data-pjs-header] *:before,
-[data-pjs-header] *:after {
+[data-pjs-header] *::before,
+[data-pjs-header] *::after {
   font-family: var(--pjs-header-font-family, var(--pjs-header-font-fallback));
 }
 
@@ -61,32 +57,68 @@ code {
   --pjs-fg: light-dark(var(--pjs-light), var(--pjs-dark));
   --pjs-fg-number: color-mix(in srgb, currentColor 65%, transparent);
 
-  --pjs-bg-deletions: color-mix(in srgb, var(--pjs-bg) 90%, rgb(255, 0, 0));
-  --pjs-bg-additions: color-mix(in srgb, var(--pjs-bg) 90%, rgb(0, 255, 0));
+  --pjs-deletion-base: light-dark(
+    var(
+      --pjs-deletion-color-override,
+      var(--pjs-light-deletion-color, var(--pjs-deletion-color, rgb(255, 0, 0)))
+    ),
+    var(
+      --pjs-deletion-color-override,
+      var(--pjs-dark-deletion-color, var(--pjs-deletion-color, rgb(255, 0, 0)))
+    )
+  );
+  --pjs-addition-base: light-dark(
+    var(
+      --pjs-addition-color-override,
+      var(--pjs-light-addition-color, var(--pjs-addition-color, rgb(0, 255, 0)))
+    ),
+    var(
+      --pjs-addition-color-override,
+      var(--pjs-dark-addition-color, var(--pjs-addition-color, rgb(0, 255, 0)))
+    )
+  );
+  --pjs-modified-base: light-dark(
+    var(
+      --pjs-modified-color-override,
+      var(--pjs-light-modified-color, var(--pjs-modified-color, rgb(0, 0, 255)))
+    ),
+    var(
+      --pjs-modified-color-override,
+      var(--pjs-dark-modified-color, var(--pjs-modified-color, rgb(0, 0, 255)))
+    )
+  );
+
+  --pjs-bg-deletions: color-mix(
+    in oklch,
+    var(--pjs-bg) 90%,
+    var(--pjs-deletion-base)
+  );
+
+  --pjs-bg-additions: color-mix(
+    in oklch,
+    var(--pjs-bg) 90%,
+    var(--pjs-addition-base)
+  );
+
   --pjs-bg-deletions-emphasis: color-mix(
-    in srgb,
+    in oklch,
     var(--pjs-bg) 70%,
-    rgb(255, 0, 0)
+    var(--pjs-deletion-base)
   );
   --pjs-bg-additions-emphasis: color-mix(
-    in srgb,
+    in oklch,
     var(--pjs-bg) 70%,
-    rgb(0, 255, 0)
+    var(--pjs-addition-base)
   );
   --pjs-bg-deletions-number: color-mix(
-    in srgb,
+    in oklch,
     var(--pjs-bg) 85%,
-    var(--pjs-deletions-color)
+    var(--pjs-deletion-base)
   );
   --pjs-bg-additions-number: color-mix(
-    in srgb,
+    in oklch,
     var(--pjs-bg) 85%,
-    var(--pjs-additions-color)
-  );
-  --pjs-bg-annotation: color-mix(
-    in srgb,
-    var(--pjs-bg) 75%,
-    var(--pjs-annotations-color)
+    var(--pjs-addition-base)
   );
 
   background-color: var(--pjs-bg);
@@ -164,6 +196,7 @@ code {
 
 [data-line-annotation],
 [data-line] {
+  position: relative;
   display: grid;
   grid-template-columns: subgrid;
   grid-column: 1 / 3;
@@ -211,7 +244,61 @@ code {
 
 [data-column-content],
 [data-column-number] {
-  padding-inline: 8px;
+  position: relative;
+  padding-inline: 1ch;
+}
+
+[data-indicators='classic'] [data-column-content] {
+  padding-inline-start: 2ch;
+}
+
+[data-indicators='classic']
+  [data-line-type='change-addition']
+  [data-column-content]::before,
+[data-indicators='classic']
+  [data-line-type='change-deletion']
+  [data-column-content]::before {
+  display: inline-block;
+  width: 1ch;
+  height: 1lh;
+  position: absolute;
+  top: 0;
+  left: 0;
+  user-select: none;
+}
+
+[data-indicators='classic']
+  [data-line-type='change-addition']
+  [data-column-content]::before {
+  content: '+';
+  color: var(--pjs-addition-base);
+}
+[data-indicators='classic']
+  [data-line-type='change-deletion']
+  [data-column-content]::before {
+  content: '-';
+  color: var(--pjs-deletion-base);
+}
+
+[data-indicators='bars'] [data-line-type='change-deletion']::before,
+[data-indicators='bars'] [data-line-type='change-addition']::before {
+  content: '';
+  display: block;
+  width: 0.5ch;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  user-select: none;
+  z-index: 2;
+}
+
+[data-indicators='bars'] [data-line-type='change-deletion']::before {
+  background-color: var(--pjs-deletion-base);
+}
+
+[data-indicators='bars'] [data-line-type='change-addition']::before {
+  background-color: var(--pjs-addition-base);
 }
 
 [data-overflow='wrap'] [data-column-content],
@@ -243,10 +330,8 @@ code {
 }
 
 [data-line-type='change-addition'] {
-  background-color: var(--pjs-bg-additions);
-
   [data-column-number] {
-    background-color: var(--pjs-bg-additions-number);
+    color: var(--pjs-addition-base);
   }
 
   [data-diff-span] {
@@ -255,14 +340,28 @@ code {
 }
 
 [data-line-type='change-deletion'] {
-  background-color: var(--pjs-bg-deletions);
-
   [data-column-number] {
-    background-color: var(--pjs-bg-deletions-number);
+    color: var(--pjs-deletion-base);
   }
 
   [data-diff-span] {
     background-color: var(--pjs-bg-deletions-emphasis);
+  }
+}
+
+[data-background] [data-line-type='change-addition'] {
+  background-color: var(--pjs-bg-additions);
+
+  [data-column-number] {
+    background-color: var(--pjs-bg-additions-number);
+  }
+}
+
+[data-background] [data-line-type='change-deletion'] {
+  background-color: var(--pjs-bg-deletions);
+
+  [data-column-number] {
+    background-color: var(--pjs-bg-deletions-number);
   }
 }
 
@@ -271,7 +370,9 @@ code {
   [data-column-content] {
     background-color: var(--pjs-bg-hover);
   }
+}
 
+[data-background] [data-line]:hover {
   &[data-line-type='change-addition'] [data-column-number] {
     background-color: var(--pjs-bg-additions-number);
   }
@@ -315,14 +416,10 @@ code {
   white-space: nowrap;
 }
 
-[data-prev-name] {
-  color: color-mix(in srgb, var(--pjs-fg) 60%, var(--pjs-bg));
-
-  /* LMAO this is kinda ass, but also we don't want to depend on berkeley ligs
-  * so we need to wait for mdo's icons */
-  &::before {
-    content: '<-- ';
-  }
+[data-prev-name]::before {
+  display: inline-block;
+  content: '➤';
+  margin-inline-end: 1ch;
 }
 
 [data-pjs-header] [data-metadata] {
@@ -334,12 +431,12 @@ code {
 
 [data-pjs-header] [data-additions] {
   font-family: var(--pjs-font-family, var(--pjs-font-fallback));
-  color: var(--pjs-additions-color);
+  color: var(--pjs-addition-base);
 }
 
 [data-pjs-header] [data-deletions] {
   font-family: var(--pjs-font-family, var(--pjs-font-fallback));
-  color: var(--pjs-deletions-color);
+  color: var(--pjs-deletion-base);
 }
 
 [data-no-newline] {
@@ -365,4 +462,22 @@ code {
   text-wrap-mode: wrap;
   word-break: normal;
   white-space-collapse: collapse;
+}
+
+[data-change-icon] {
+  flex-shrink: 0;
+}
+
+[data-change-icon='change'],
+[data-change-icon='rename-pure'],
+[data-change-icon='rename-changed'] {
+  color: var(--pjs-modified-base);
+}
+
+[data-change-icon='new'] {
+  color: var(--pjs-addition-base);
+}
+
+[data-change-icon='deleted'] {
+  color: var(--pjs-deletion-base);
 }
