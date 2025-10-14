@@ -43,6 +43,10 @@ let cachedInstallationsData: {
   timestamp: number;
 } | null = null;
 
+function bustInstallationsCache(): void {
+  cachedInstallationsData = null;
+}
+
 // Track in-flight requests to prevent duplicate simultaneous requests
 let pendingFetchInstallations: Promise<InstallationsResponse> | null = null;
 
@@ -177,6 +181,7 @@ class GitHubAppConnector {
       event.data.state === this.stableId
     ) {
       try {
+        bustInstallationsCache();
         const data = await fetchInstallations(
           this.config.installationsUrl,
           this.abortController.signal

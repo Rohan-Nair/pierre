@@ -434,10 +434,15 @@ function PopoverConductor({
     initialStep = 'create';
   }
 
+  console.log('initialStep', initialStep, codeStorageRepo, connectionStatus);
+
   const [step, setStep] = useState<Step>(initialStep);
 
   useEffect(() => {
+    console.log('codeStorageRepo effect', codeStorageRepo);
+    console.log('connectionStatus effect', connectionStatus);
     if (codeStorageRepo != null) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setStep('manage');
     } else if (connectionStatus === 'installed') {
       setStep('create');
@@ -522,6 +527,7 @@ function StepManage({ codeStorageRepo, __container }: StepManageProps) {
         codeStorageRepo.repository.owner,
         owner
       );
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedOwnerId(owner?.id ?? null);
     }
   }, [owners, codeStorageRepo.repository.owner, getOwnerByName]);
@@ -646,6 +652,7 @@ function StepCreate({
   // to an uncontrolled combobox and compute the value in the single pass, but idk.
   useEffect(() => {
     if (owners.length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedOwnerId(owners[0]?.id ?? null);
     }
   }, [owners]);
@@ -829,13 +836,6 @@ function StepWelcome({
 }: StepWelcomeProps) {
   const isPendingConnection = connectionStatus === 'pending';
   const hasError = connectionStatus === 'error';
-
-  // TODO: remove this
-  if (connectionStatus === 'installed') {
-    console.error(
-      'welcome step rendered with installed status, which shouldnt happen'
-    );
-  }
 
   return (
     <>
