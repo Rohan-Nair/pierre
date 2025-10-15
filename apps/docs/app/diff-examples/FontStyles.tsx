@@ -67,6 +67,7 @@ export function FontStyles() {
   const [selectedFont, setSelectedFont] = useState('Berkeley Mono');
   const [selectedFontSize, setSelectedFontSize] = useState('14px');
   const [selectedLineHeight, setSelectedLineHeight] = useState('20px');
+  const [fontFeatureSettings, setFontFeatureSettings] = useState('normal');
 
   return (
     <div className="space-y-5">
@@ -156,6 +157,10 @@ export function FontStyles() {
 
           <div className="p-[2px] rounded-lg bg-secondary">
             <InputWithIcon
+              value={fontFeatureSettings}
+              onChange={({ currentTarget }) =>
+                setFontFeatureSettings(currentTarget.value)
+              }
               icon={<IconFunction className="h-4 w-4" />}
               placeholder="Font feature settings"
               className="md:max-w-xs"
@@ -163,26 +168,24 @@ export function FontStyles() {
           </div>
         </div>
       </div>
-      <div
+      <FileDiff
+        oldFile={OLD_FILE}
+        newFile={NEW_FILE}
+        className="rounded-lg overflow-hidden border"
+        options={{
+          detectLanguage: true,
+          theme: 'pierre-dark',
+          diffStyle: 'unified',
+        }}
         style={
           {
             '--pjs-font-family': `var(${fontMap[selectedFont]})`,
             '--pjs-font-size': selectedFontSize,
             '--pjs-line-height': selectedLineHeight,
+            '--pjs-font-features': fontFeatureSettings,
           } as React.CSSProperties
         }
-      >
-        <FileDiff
-          oldFile={OLD_FILE}
-          newFile={NEW_FILE}
-          className="rounded-lg overflow-hidden border"
-          options={{
-            detectLanguage: true,
-            theme: 'pierre-dark',
-            diffStyle: 'unified',
-          }}
-        />
-      </div>
+      />
     </div>
   );
 }
