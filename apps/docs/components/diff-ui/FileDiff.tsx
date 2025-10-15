@@ -8,7 +8,7 @@ import {
   parseDiffFromFiles,
 } from '@pierre/diff-ui';
 import deepEqual from 'fast-deep-equal';
-import { useLayoutEffect, useRef, useState } from 'react';
+import { type CSSProperties, useLayoutEffect, useRef, useState } from 'react';
 
 const BLANK_FILE = { name: '__', contents: '' };
 
@@ -18,6 +18,7 @@ interface FileDiffProps<LAnnotation = undefined> {
   options: DiffFileRendererOptions<LAnnotation>;
   annotations?: LineAnnotation[];
   className?: string;
+  style?: CSSProperties;
 }
 
 export function FileDiff({
@@ -26,6 +27,7 @@ export function FileDiff({
   options,
   annotations,
   className,
+  style,
 }: FileDiffProps) {
   const [diffRenderer] = useState(() => new FileDiffUI(options));
   const ref = useRef<HTMLElement>(null);
@@ -58,5 +60,5 @@ export function FileDiff({
       });
     }
   });
-  return <pjs-container ref={ref} className={className} />;
+  return <pjs-container ref={ref} className={className} style={style} />;
 }
