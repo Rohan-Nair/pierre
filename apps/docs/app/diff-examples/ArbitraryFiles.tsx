@@ -6,36 +6,43 @@ import type { FileContents } from '@pierre/diff-ui';
 import { FeatureHeader } from './FeatureHeader';
 
 const OLD_FILE: FileContents = {
-  name: 'file.tsx',
-  contents: `import * as 'react';
-import IconSprite from './IconSprite';
-import Header from './Header';
+  name: 'rainbow.css',
+  contents: `body {
+  background: linear-gradient(45deg, #ff0000, #ff7f00);
+  animation: rainbow 5s ease infinite;
+}
 
-export default function Home() {
-  return (
-    <div>
-      <Header />
-      <IconSprite />
-    </div>
-  );
+@keyframes rainbow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 `,
 };
 
 const NEW_FILE: FileContents = {
-  name: 'file.tsx',
-  contents: `import IconSprite from './IconSprite';
-import HeaderSimple from '../components/HeaderSimple';
-import Hero from '../components/Hero';
-
-export default function Home() {
-  return (
-    <div>
-      <HeaderSimple />
-      <IconSprite />
-      <h1>Hello!</h1>
-    </div>
+  name: 'rainbow.css',
+  contents: `body {
+  background: linear-gradient(
+    45deg,
+    #ff0000,
+    #ff7f00,
+    #ffff00,
+    #00ff00,
+    #0000ff,
+    #4b0082,
+    #9400d3
   );
+  background-size: 400% 400%;
+  animation: rainbow 3s ease infinite;
+}
+
+@keyframes rainbow {
+  0% { background-position: 0% 50%; }
+  25% { background-position: 50% 100%; }
+  50% { background-position: 100% 50%; }
+  75% { background-position: 50% 0%; }
+  100% { background-position: 0% 50%; }
 }
 `,
 };

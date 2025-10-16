@@ -17,37 +17,26 @@ import { useState } from 'react';
 import { FeatureHeader } from './FeatureHeader';
 
 const OLD_FILE: FileContents = {
-  name: 'file.tsx',
-  contents: `import * as 'react';
-import IconSprite from './IconSprite';
-import Header from './Header';
-
-export default function Home() {
-  return (
-    <div>
-      <Header />
-      <IconSprite />
-    </div>
-  );
+  name: 'hello.ts',
+  contents: `function greet(name) {
+  return "Hello, " + name + "!";
 }
+
+const message = greet("World");
+console.log(message);
 `,
 };
 
 const NEW_FILE: FileContents = {
-  name: 'file.tsx',
-  contents: `import IconSprite from './IconSprite';
-import HeaderSimple from '../components/HeaderSimple';
-import Hero from '../components/Hero';
-
-export default function Home() {
-  return (
-    <div>
-      <HeaderSimple />
-      <IconSprite />
-      <h1>Hello!</h1>
-    </div>
-  );
+  name: 'hello.ts',
+  contents: `function greet(name: string): string {
+  return \`Hello, \${name}!\`;
 }
+
+const message: string = greet("World");
+console.log(message);
+
+export { greet };
 `,
 };
 
