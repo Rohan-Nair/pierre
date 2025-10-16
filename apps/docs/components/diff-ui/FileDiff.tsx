@@ -5,7 +5,6 @@ import {
   type FileContents,
   FileDiff as FileDiffUI,
   type LineAnnotation,
-  parseDiffFromFile,
 } from '@pierre/diff-ui';
 import deepEqual from 'fast-deep-equal';
 import {
@@ -18,17 +17,17 @@ import {
 
 const BLANK_FILE = { name: '__', contents: '' };
 
-interface FileDiffProps<LAnnotation = undefined> {
+interface FileDiffProps<LAnnotation> {
   oldFile: FileContents;
   newFile: FileContents;
-  options: DiffFileRendererOptions<LAnnotation>;
-  annotations?: LineAnnotation[];
+  options?: DiffFileRendererOptions<LAnnotation>;
+  annotations?: LineAnnotation<LAnnotation>[];
+  renderAnnotation?(annotations: LineAnnotation<LAnnotation>): ReactNode;
   className?: string;
   style?: CSSProperties;
-  renderAnnotation?(annotations: LineAnnotation<LAnnotation>): ReactNode;
 }
 
-export function FileDiff({
+export function FileDiff<LAnnotation = undefined>({
   oldFile,
   newFile,
   options,
@@ -36,8 +35,10 @@ export function FileDiff({
   className,
   style,
   renderAnnotation,
-}: FileDiffProps) {
-  const [diffRenderer] = useState(() => new FileDiffUI(options, true));
+}: FileDiffProps<LAnnotation>) {
+  const [diffRenderer] = useState(
+    () => new FileDiffUI<LAnnotation>(options, true)
+  );
   const ref = useRef<HTMLElement>(null);
   const optionsRef = useRef(options);
   const filesRef = useRef<[FileContents, FileContents]>([
@@ -60,11 +61,12 @@ export function FileDiff({
     }
     if (hasFileChange || hasOptionsChange) {
       filesRef.current = [oldFile, newFile];
-      const fileDiff = parseDiffFromFile(oldFile, newFile);
-      if (annotations != null) diffRenderer.setLineAnnotations(annotations);
       void diffRenderer.render({
-        fileDiff,
+        forceRender: true,
+        oldFile,
+        newFile,
         fileContainer: ref.current ?? undefined,
+        lineAnnotations: annotations,
       });
     }
   });

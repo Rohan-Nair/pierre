@@ -12,6 +12,7 @@
     "tsc": "tsc --build"
   },
   "dependencies": {
+    "@icons-pack/react-simple-icons": "catalog:",
     "@pierre/diff-ui": "workspace:*",
     "@pierre/storage": "catalog:",
     "@pierre/storage-elements-next": "workspace:*",
@@ -28,6 +29,8 @@
     "@radix-ui/react-toggle": "catalog:",
     "@radix-ui/react-toggle-group": "catalog:",
     "@radix-ui/react-tooltip": "catalog:",
+    "@radix-ui/react-use-controllable-state": "catalog:",
+    "@shikijs/transformers": "catalog:",
     "class-variance-authority": "catalog:",
     "clsx": "catalog:",
     "cmdk": "catalog:",
@@ -43,7 +46,6 @@
     "react": "catalog:",
     "react-dom": "catalog:",
     "shadcn": "catalog:",
-    "shiki": "catalog:",
     "sonner": "catalog:",
     "tailwind-merge": "catalog:",
     "tailwindcss": "catalog:",
