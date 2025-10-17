@@ -1,5 +1,7 @@
 import { SimpleCodeBlock } from '@/components/SimpleCodeBlock';
+import { IconCiWarningFill } from '@/components/icons';
 import { ButtonGroup, ButtonGroupItem } from '@/components/ui/button-group';
+import Link from 'next/link';
 import { useState } from 'react';
 
 import type { DocsExampleTypes } from './types';
@@ -153,49 +155,59 @@ export function Overview({ exampleType, setExampleType }: OverviewProps) {
   return (
     <section className="space-y-4">
       <h2>Overview</h2>
-      <p className="bg-amber-500 px-4 py-2 rounded-md">
-        <strong>NOTE</strong>: Precision Diffs is in early active development
-        and many of these APIs will change or are incomplete.
+      <p className="flex gap-2 text-sm bg-cyan-500/10 border border-cyan-500/20 px-5 py-4 rounded-md text-cyan-600 dark:text-cyan-300">
+        <IconCiWarningFill className="mt-[2px]" />
+        Precision Diffs is in early active development—many of these APIs are
+        subject to change.
       </p>
       <p>
-        Precision Diffs is a library for rendering code and diffs on the web.
-        This includes both high level easy to use components as well as exposing
-        many of the internals if you want to selectively use specific pieces.
-        We&lsquo;ve built syntax highlighting on top of Shiki which provides a
-        lot of great theme and language support.
+        <strong>Precision Diffs</strong> is a library for rendering code and
+        diffs on the web. This includes both high level easy-to-use components
+        as well as exposing many of the internals if you want to selectively use
+        specific pieces. We’ve built syntax highlighting on top of{' '}
+        <Link href="https://shiki.dev" target="_blank">
+          Shiki
+        </Link>{' '}
+        which provides a lot of great theme and language support.
       </p>
       <p>
-        We&lsquo;ve taken a somewhat opinionated stance in our architecture in
-        that browsers are pretty effecient at rendering raw html and we lean
-        into this by having all the lower level APIs purely rendering strings
-        (raw html) that can then be consumed by higher order components and
-        utilities. This gives us great performance and flexibility to support
-        popular libraries like React as well as provide great tools if you want
-        to stick to vanilla js and html. The higher order components render all
-        this out into shadow dom and css grids.
+        We have an opinionated stance in our architecture:{' '}
+        <strong>browsers are rather efficient at rendering raw HTML</strong>. We
+        lean into this by having all the lower level APIs purely rendering
+        strings (the raw HTML) that are then consumed by higher-order components
+        and utilities. This gives us great performance and flexibility to
+        support popular libraries like React as well as provide great tools if
+        you want to stick to vanilla JavaScript and HTML. The higher-order
+        components render all this out into Shadow DOM and CSS grid layout.
       </p>
       <p>
-        Generally speaking you&lsquo;re probably going to want to use the higher
-        level components since they provide an easy to use API that you can get
-        started with rather quickly. Currently we only have components for
-        vanilla js and React, but will add more if there&lsquo;s demand.
+        Generally speaking, you’re probably going to want to use the higher
+        level components since they provide an easy-to-use API that you can get
+        started with rather quickly. We currently only have components for
+        vanilla JavaScript and React, but will add more if there’s demand.
       </p>
       <p>
-        For this overview we&lsquo;ll talk about the vanilla js components for
-        now but there are React equivalents for all of these.
+        For this overview, we’ll talk about the vanilla JavaScript components
+        for now but there are React equivalents for all of these.
       </p>
       <h3>Rendering Diffs</h3>
       <p>
-        It&lsquo;s in the name, it&lsquo;s probably why you&lsquo;re here. Our
-        goal with visualizing diffs was to provide some flexible and easy to use
-        APIs for <em>how</em> you might want to render diffs. For this we
-        provide a component called <code>FileDiff</code> (both a vanilla js
-        implementation and a React version).
+        It’s in the name, it’s probably why you’re here. Our goal with
+        visualizing diffs was to provide some flexible and easy to use APIs for{' '}
+        <em>how</em> you might want to render diffs. For this we provide a
+        component called <code>FileDiff</code> (available in both JavaScript and
+        React versions).
       </p>
       <p>
-        With <code>FileDiff</code> there are two basic ways to render diffs,
-        either providing 2 versions of a file or code to compare, or consuming a
-        patch file.
+        There are two ways to render diffs with <code>FileDiff</code>:
+      </p>
+      <ol>
+        <li>Provide two versions of a file or code to compare</li>
+        <li>Consume a patch file</li>
+      </ol>
+      <p>
+        You can see examples of both these approaches below, in both JavaScript
+        and React.
       </p>
       <div className="flex gap-2">
         <ButtonGroup
@@ -213,8 +225,8 @@ export function Overview({ exampleType, setExampleType }: OverviewProps) {
             setExample(value as 'single-file' | 'patch-file')
           }
         >
-          <ButtonGroupItem value="single-file">Single File</ButtonGroupItem>
-          <ButtonGroupItem value="patch-file">Patch File</ButtonGroupItem>
+          <ButtonGroupItem value="single-file">Single file</ButtonGroupItem>
+          <ButtonGroupItem value="patch-file">Patch file</ButtonGroupItem>
         </ButtonGroup>
       </div>
       {exampleType === 'react' ? (
