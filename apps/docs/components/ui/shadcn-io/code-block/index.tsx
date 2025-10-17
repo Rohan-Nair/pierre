@@ -237,7 +237,7 @@ const wordHighlightClassNames = cn(
 );
 
 const codeBlockClassName = cn(
-  'mt-0 bg-background text-sm',
+  'mt-0 bg-background text-[13px] leading-[20px]',
   '[&_pre]:py-4',
   '[&_.shiki]:!bg-[var(--shiki-bg)]',
   '[&_code]:w-full',
@@ -291,7 +291,10 @@ export const CodeBlock = ({
   return (
     <CodeBlockContext.Provider value={{ value, onValueChange, data }}>
       <div
-        className={cn('size-full overflow-hidden rounded-md border', className)}
+        className={cn(
+          'size-full overflow-hidden rounded-md border border-border',
+          className
+        )}
         {...props}
       />
     </CodeBlockContext.Provider>
@@ -306,7 +309,7 @@ export const CodeBlockHeader = ({
 }: CodeBlockHeaderProps) => (
   <div
     className={cn(
-      'flex flex-row items-center border-b bg-secondary p-1',
+      'flex flex-row items-center border-b border-border bg-secondary bg-clip-padding',
       className
     )}
     {...props}
@@ -557,8 +560,8 @@ export const CodeBlockItem = ({
 
 export type CodeBlockContentProps = HTMLAttributes<HTMLDivElement> & {
   themes?: {
-    light: string;
-    dark: string;
+    light: string | object;
+    dark: string | object;
   };
   language?: BundledLanguage;
   syntaxHighlighting?: boolean;

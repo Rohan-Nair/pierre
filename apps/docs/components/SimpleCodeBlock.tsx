@@ -9,6 +9,9 @@ import {
   CodeBlockItem,
 } from '@/components/ui/shadcn-io/code-block';
 
+import pierreDarkTheme from '../themes/pierre-dark.json';
+import pierreLightTheme from '../themes/pierre-light.json';
+
 interface SimpleCodeBlockProps {
   code: string;
   language?: string;
@@ -51,7 +54,13 @@ export function SimpleCodeBlock({
             value={item.language}
             lineNumbers={lineNumbers}
           >
-            <CodeBlockContent language={item.language}>
+            <CodeBlockContent
+              language={item.language}
+              themes={{
+                light: pierreLightTheme,
+                dark: pierreDarkTheme,
+              }}
+            >
               {item.code}
             </CodeBlockContent>
           </CodeBlockItem>
