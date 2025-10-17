@@ -153,6 +153,10 @@ export function Overview({ exampleType, setExampleType }: OverviewProps) {
   return (
     <section className="space-y-4">
       <h2>Overview</h2>
+      <p className="bg-amber-500 px-4 py-2 rounded-md">
+        <strong>NOTE</strong>: Precision Diffs is in early active development
+        and many of these APIs will change or are incomplete.
+      </p>
       <p>
         Precision Diffs is a library for rendering code and diffs on the web.
         This includes both high level easy to use components as well as exposing
@@ -189,9 +193,9 @@ export function Overview({ exampleType, setExampleType }: OverviewProps) {
         implementation and a React version).
       </p>
       <p>
-        With Precision Diffs there are two basic ways to render diffs, either
-        providing 2 files or code snippets to compare, or consuming a patch
-        file.
+        With <code>FileDiff</code> there are two basic ways to render diffs,
+        either providing 2 versions of a file or code to compare, or consuming a
+        patch file.
       </p>
       <div className="flex gap-2">
         <ButtonGroup
