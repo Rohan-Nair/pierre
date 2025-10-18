@@ -1,4 +1,5 @@
 import deepEquals from 'fast-deep-equal';
+import type { Element } from 'hast';
 
 import {
   DiffHeaderRenderer,
@@ -6,6 +7,7 @@ import {
 } from './DiffHeaderRenderer';
 import { DiffHunksRenderer, type HunksRenderResult } from './DiffHunksRenderer';
 import { getSharedHighlighter } from './SharedHighlighter';
+import { HEADER_METADATA_SLOT_ID } from './constants';
 import './custom-components/Container';
 import svgSprite from './sprite.txt?raw';
 import type {
@@ -21,11 +23,7 @@ import type {
   ThemeRendererOptions,
   ThemesRendererOptions,
 } from './types';
-import {
-  createCodeNode,
-  createSVGElement,
-  setWrapperProps,
-} from './utils/html_render_utils';
+import { createCodeNode, setWrapperProps } from './utils/html_render_utils';
 import {
   type FileContents,
   parseDiffFromFile,
@@ -131,7 +129,7 @@ export class FileDiff<LAnnotation = undefined> {
   private pre: HTMLPreElement | undefined;
 
   private hunksRenderer: DiffHunksRenderer<LAnnotation>;
-  private headerRenderer: DiffHeaderRenderer | undefined;
+  private headerRenderer: DiffHeaderRenderer;
 
   private observedNodes = new Map<
     HTMLElement,
@@ -149,6 +147,7 @@ export class FileDiff<LAnnotation = undefined> {
   ) {
     this.options = options;
     this.hunksRenderer = new DiffHunksRenderer(options);
+    this.headerRenderer = new DiffHeaderRenderer(options);
   }
 
   // FIXME(amadeus): This is a bit of a looming issue that I'll need to resolve:
@@ -191,8 +190,8 @@ export class FileDiff<LAnnotation = undefined> {
       return;
     }
     this.mergeOptions({ themeMode });
-    this.hunksRenderer?.setThemeMode(themeMode);
-    this.headerRenderer?.setThemeMode(themeMode);
+    this.hunksRenderer.setThemeMode(themeMode);
+    this.headerRenderer.setThemeMode(themeMode);
 
     // Update pre element theme mode
     if (this.pre != null) {
@@ -224,13 +223,12 @@ export class FileDiff<LAnnotation = undefined> {
 
   cleanUp() {
     this.fileContainer?.parentNode?.removeChild(this.fileContainer);
-    this.hunksRenderer?.cleanUp();
-    this.headerRenderer?.cleanUp();
+    this.hunksRenderer.cleanUp();
+    this.headerRenderer.cleanUp();
     this.resizeObserver?.disconnect();
     this.observedNodes.clear();
     this.fileContainer = undefined;
     this.pre = undefined;
-    this.headerRenderer = undefined;
     this.headerElement = undefined;
     this.fileDiff = undefined;
     this.resizeObserver = undefined;
@@ -270,8 +268,7 @@ export class FileDiff<LAnnotation = undefined> {
     const { renderCustomMetadata, disableFileHeader = false } = this.options;
 
     if (disableFileHeader) {
-      this.headerRenderer?.cleanUp();
-      this.headerRenderer = undefined;
+      this.headerRenderer.cleanUp();
       // Remove existing header from DOM
       if (this.headerElement != null) {
         this.headerElement.parentNode?.removeChild(this.headerElement);
@@ -283,18 +280,17 @@ export class FileDiff<LAnnotation = undefined> {
         theme != null
           ? { theme, renderCustomMetadata, themeMode }
           : { themes, renderCustomMetadata, themeMode };
-      this.headerRenderer ??= new DiffHeaderRenderer(options);
       this.headerRenderer.setOptions(options);
     }
 
     const [highlighter, headerResult, hunksResult] = await Promise.all([
       getSharedHighlighter({ themes: this.getThemes(), langs: [] }),
-      this.headerRenderer?.render(this.fileDiff),
+      this.headerRenderer.render(this.fileDiff),
       this.hunksRenderer.render(this.fileDiff),
     ]);
 
     if (headerResult != null) {
-      this.applyHeaderToDOM(headerResult, fileContainer);
+      this.applyHeaderToDOM(headerResult, fileContainer, this.fileDiff);
     }
     if (hunksResult != null) {
       this.applyHunksToDOM(hunksResult, pre, highlighter);
@@ -334,11 +330,13 @@ export class FileDiff<LAnnotation = undefined> {
     this.fileContainer =
       fileContainer ?? document.createElement('pjs-container');
     if (this.spriteSVG == null) {
-      this.spriteSVG = createSVGElement('svg');
-      this.spriteSVG.innerHTML = svgSprite;
-      this.spriteSVG.style.display = 'none';
-      this.spriteSVG.setAttribute('aria-hidden', 'true');
-      this.fileContainer.shadowRoot?.appendChild(this.spriteSVG);
+      const fragment = document.createElement('div');
+      fragment.innerHTML = svgSprite;
+      const firstChild = fragment.firstChild;
+      if (firstChild instanceof SVGElement) {
+        this.spriteSVG = firstChild;
+        this.fileContainer.shadowRoot?.appendChild(this.spriteSVG);
+      }
     }
     const {
       onLineClick,
@@ -481,28 +479,40 @@ export class FileDiff<LAnnotation = undefined> {
   }
 
   private headerElement: HTMLElement | undefined;
-  private applyHeaderToDOM(headerHTML: string, container: HTMLElement) {
+  private headerMetadata: HTMLElement | undefined;
+  private applyHeaderToDOM(
+    headerHTML: Element,
+    container: HTMLElement,
+    fileDiff: FileDiffMetadata
+  ) {
     const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = headerHTML;
-    const newHeader = tempDiv.firstElementChild as HTMLElement;
-
-    if (newHeader == null) {
+    tempDiv.innerHTML = this.headerRenderer.renderResultToHTML(headerHTML);
+    const newHeader = tempDiv.firstElementChild;
+    if (!(newHeader instanceof HTMLElement)) {
       return;
     }
-
-    const themeMode = this.options.themeMode ?? 'system';
-    if (themeMode === 'system') {
-      delete newHeader.dataset.themeMode;
-    } else {
-      newHeader.dataset.themeMode = themeMode;
-    }
-
     if (this.headerElement != null) {
       container.shadowRoot?.replaceChild(newHeader, this.headerElement);
     } else {
       container.shadowRoot?.prepend(newHeader);
     }
     this.headerElement = newHeader;
+
+    const { renderCustomMetadata } = this.options;
+    if (this.headerMetadata != null) {
+      this.headerMetadata.parentNode?.removeChild(this.headerMetadata);
+    }
+    const content = renderCustomMetadata?.(fileDiff) ?? undefined;
+    if (content != null) {
+      this.headerMetadata = document.createElement('div');
+      this.headerMetadata.slot = HEADER_METADATA_SLOT_ID;
+      if (content instanceof Element) {
+        this.headerMetadata.appendChild(content);
+      } else {
+        this.headerMetadata.innerText = `${content}`;
+      }
+      container.appendChild(this.headerMetadata);
+    }
   }
 
   private setPreAttributes(
