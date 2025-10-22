@@ -225,9 +225,14 @@ export class FileDiff<LAnnotation = undefined> {
 
   async render(props: FileDiffRenderProps<LAnnotation>) {
     const { forceRender = false, lineAnnotations, containerWrapper } = props;
+    const annotationsChanged = !deepEquals(
+      lineAnnotations,
+      this.lineAnnotations
+    );
     if (
       props.fileDiff == null &&
       !forceRender &&
+      !annotationsChanged &&
       deepEquals(props.oldFile, this.oldFile) &&
       deepEquals(props.newFile, this.newFile)
     ) {
@@ -310,11 +315,43 @@ export class FileDiff<LAnnotation = undefined> {
   }
 
   spriteSVG: SVGElement | undefined;
+
+  private attachEventListeners() {
+    if (this.fileContainer == null) return;
+
+    const shadowRoot = this.fileContainer.shadowRoot as HTMLElement | null;
+    if (shadowRoot == null) return;
+
+    // Remove old event listeners if they exist
+    shadowRoot.removeEventListener('click', this.handleMouseClick);
+    shadowRoot.removeEventListener('mousemove', this.handleMouseMove);
+    shadowRoot.removeEventListener('mouseleave', this.handleMouseLeave);
+
+    const {
+      onLineClick,
+      onLineEnter,
+      onLineLeave,
+      hunkSeparators = 'line-info',
+    } = this.options;
+
+    if (onLineClick != null || hunkSeparators === 'line-info') {
+      shadowRoot.addEventListener('click', this.handleMouseClick);
+    }
+    if (onLineEnter != null || onLineLeave != null) {
+      shadowRoot.addEventListener('mousemove', this.handleMouseMove);
+      if (onLineLeave != null) {
+        shadowRoot.addEventListener('mouseleave', this.handleMouseLeave);
+      }
+    }
+  }
+
   getOrCreateFileContainer(fileContainer?: HTMLElement) {
     if (
       (fileContainer != null && fileContainer === this.fileContainer) ||
       (fileContainer == null && this.fileContainer != null)
     ) {
+      // Re-attach event listeners with updated callbacks
+      this.attachEventListeners();
       return this.fileContainer;
     }
     this.fileContainer =
@@ -328,24 +365,7 @@ export class FileDiff<LAnnotation = undefined> {
         this.fileContainer.shadowRoot?.appendChild(this.spriteSVG);
       }
     }
-    const {
-      onLineClick,
-      onLineEnter,
-      onLineLeave,
-      hunkSeparators = 'line-info',
-    } = this.options;
-    if (onLineClick != null || hunkSeparators === 'line-info') {
-      this.fileContainer.addEventListener('click', this.handleMouseClick);
-    }
-    if (onLineEnter != null || onLineLeave != null) {
-      this.fileContainer.addEventListener('mousemove', this.handleMouseMove);
-      if (onLineLeave != null) {
-        this.fileContainer.addEventListener(
-          'mouseleave',
-          this.handleMouseLeave
-        );
-      }
-    }
+    this.attachEventListeners();
     return this.fileContainer;
   }
 
