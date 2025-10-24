@@ -217,14 +217,13 @@ export class FileDiff<LAnnotation = undefined> {
   }
 
   hydrate(props: FileDiffRenderProps<LAnnotation>) {
-    this.fileContainer = props.fileContainer;
-    if (this.fileContainer == null) {
+    if (props.fileContainer == null) {
       throw new Error(
         'FileDiff: you must provide a fileContainer on hydration'
       );
     }
     for (const element of Array.from(
-      this.fileContainer.shadowRoot?.children ?? []
+      props.fileContainer.shadowRoot?.children ?? []
     )) {
       if (element instanceof SVGElement) {
         this.spriteSVG = element;
@@ -248,6 +247,8 @@ export class FileDiff<LAnnotation = undefined> {
     }
     // Otherwise orchestrate our setup
     else {
+      this.fileContainer = props.fileContainer;
+
       this.attachEventListeners(this.pre);
       this.setupResizeObserver(this.pre);
 
@@ -384,12 +385,6 @@ export class FileDiff<LAnnotation = undefined> {
   }
 
   getOrCreateFileContainer(fileContainer?: HTMLElement) {
-    if (
-      (fileContainer != null && fileContainer === this.fileContainer) ||
-      (fileContainer == null && this.fileContainer != null)
-    ) {
-      return this.fileContainer;
-    }
     this.fileContainer = fileContainer ?? document.createElement('file-diff');
     if (this.spriteSVG == null) {
       const fragment = document.createElement('div');
