@@ -169,6 +169,9 @@ function renderDiff(parsedPatches: ParsedPatch[]) {
         onLineClick(props) {
           console.log('onLineClick', props);
         },
+        onLineNumberClick(props) {
+          console.info('onLineNumberClick', props);
+        },
         // Super noisy, but for debuggin
         // onLineEnter(props, diff) {
         //   console.log(
@@ -235,11 +238,12 @@ if (streamCode != null) {
 
 const loadDiff = document.getElementById('load-diff');
 if (loadDiff != null) {
-  loadDiff.addEventListener('click', () => {
+  function handleClick() {
     void (async () => {
       renderDiff(parsedPatches ?? parsePatchFiles(await loadPatchContent()));
     })();
-  });
+  }
+  loadDiff.addEventListener('click', handleClick);
   loadDiff.addEventListener('mouseenter', () => void handlePreloadDiff);
 }
 

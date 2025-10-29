@@ -77,6 +77,8 @@ export interface FileDiffMetadata {
   type: ChangeTypes;
   hunks: Hunk[];
   lines: number;
+  oldMode?: string;
+  mode?: string;
   oldLines?: string[];
   newLines?: string[];
 }
@@ -190,6 +192,7 @@ export interface LineEventBaseProps {
   type: 'line';
   lineNumber: number;
   lineElement: HTMLElement;
+  numberColumn: boolean;
 }
 
 export interface DiffLineEventBaseProps extends LineEventBaseProps {
