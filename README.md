@@ -8,7 +8,7 @@ Technically you can use the package manager of your choice, but I setup the
 project using [bun](https://bun.sh/) and all example commands assume bun.
 
 ```bash
-# Seup Dependencies
+# Setup Dependencies
 bun install
 
 # Development
@@ -24,10 +24,10 @@ bun publish
 
 ## Building Icons
 
-To build all our SVG icons from figma there's a couple preparation steps that
+To build all our SVG icons from Figma there's a couple preparation steps that
 you need to run first.
 
-Perform a full export of all `Published Icons` the `Pierre Design` figma file
+Perform a full export of all `Published Icons` the `Pierre Design` Figma file
 
 Do this by selecting all the icons but not the art board and in the bottom right
 click `Export XXX Layers` and make sure to point it to a `./svg` folder at the
