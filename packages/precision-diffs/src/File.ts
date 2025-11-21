@@ -10,6 +10,7 @@ import {
   pluckLineSelectionOptions,
 } from './LineSelectionManager';
 import {
+  type GetHoveredLineResult,
   MouseEventManager,
   type MouseEventManagerBaseOptions,
   pluckMouseEventOptions,
@@ -29,7 +30,12 @@ import type {
 } from './types';
 import { getLineAnnotationName } from './utils/getLineAnnotationName';
 import { getThemes } from './utils/getThemes';
-import { createCodeNode, setWrapperProps } from './utils/html_render_utils';
+import {
+  createAnnotationWrapper,
+  createCodeNode,
+  createHoverContent,
+  setWrapperProps,
+} from './utils/html_render_utils';
 
 interface FileRenderProps<LAnnotation> {
   file: FileContents;
@@ -48,6 +54,9 @@ export interface FileOptions<LAnnotation>
   renderAnnotation?(
     annotation: LineAnnotation<LAnnotation>
   ): HTMLElement | undefined;
+  renderHoverUtility?(
+    getHoveredRow: () => GetHoveredLineResult<'file'> | undefined
+  ): HTMLElement | null;
 }
 
 let instanceId = -1;
@@ -61,6 +70,7 @@ export class File<LAnnotation = undefined> {
   private pre: HTMLPreElement | undefined;
   private code: HTMLElement | undefined;
   private unsafeCSSStyle: HTMLStyleElement | undefined;
+  private hoverContent: HTMLElement | undefined;
 
   private headerElement: HTMLElement | undefined;
   private headerMetadata: HTMLElement | undefined;
@@ -133,6 +143,10 @@ export class File<LAnnotation = undefined> {
       }
     }
   }
+
+  getHoveredLine = (): GetHoveredLineResult<'file'> | undefined => {
+    return this.mouseEventManager.getHoveredLine();
+  };
 
   setLineAnnotations(lineAnnotations: LineAnnotation<LAnnotation>[]): void {
     this.lineAnnotations = lineAnnotations;
@@ -209,6 +223,7 @@ export class File<LAnnotation = undefined> {
       this.file = props.file;
       void this.fileRenderer.initializeHighlighter();
       this.renderAnnotations();
+      this.renderHoverUtility();
       this.injectUnsafeCSS();
       this.mouseEventManager.setup(this.pre);
       this.lineSelectionManager.setup(this.pre);
@@ -285,6 +300,7 @@ export class File<LAnnotation = undefined> {
       const pre = this.getOrCreatePre(fileContainer);
       this.applyHunksToDOM(fileResult, pre, highlighter);
       this.renderAnnotations();
+      this.renderHoverUtility();
     }
   }
 
@@ -303,13 +319,25 @@ export class File<LAnnotation = undefined> {
       for (const annotation of this.lineAnnotations) {
         const content = renderAnnotation(annotation);
         if (content == null) continue;
-        const el = document.createElement('div');
-        el.dataset.annotationSlot = '';
-        el.slot = getLineAnnotationName(annotation);
+        const el = createAnnotationWrapper(getLineAnnotationName(annotation));
         el.appendChild(content);
         this.annotationElements.push(el);
         this.fileContainer.appendChild(el);
       }
+    }
+  }
+
+  private renderHoverUtility() {
+    const { renderHoverUtility } = this.options;
+    if (this.fileContainer == null || renderHoverUtility == null) return;
+    if (this.hoverContent == null) {
+      this.hoverContent = createHoverContent();
+      this.fileContainer.appendChild(this.hoverContent);
+    }
+    const element = renderHoverUtility(this.mouseEventManager.getHoveredLine);
+    this.hoverContent.innerHTML = '';
+    if (element != null) {
+      this.hoverContent.appendChild(element);
     }
   }
 
