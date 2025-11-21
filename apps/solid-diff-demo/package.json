@@ -4,12 +4,14 @@
   "type": "module",
   "scripts": {
     "dev": "vinxi dev",
-    "build": "vinxi build",
+    "build": "bun run build:deps && vinxi build",
+    "build:deps": "bun run build:deps:precision-diffs",
+    "build:deps:precision-diffs": "output=$(cd ../../packages/precision-diffs && bun run build 2>&1) && echo '[diffs] Successfully cleaned and built.' || (echo \"$output\" >&2 && exit 1)",
     "start": "vinxi start",
     "tsc": "tsc --noEmit"
   },
   "dependencies": {
-    "@pierre/precision-diffs": "0.5.5",
+    "@pierre/precision-diffs": "workspace:",
     "@solidjs/meta": "^0.29.4",
     "@solidjs/router": "^0.15.3",
     "@solidjs/start": "^1.0.14",
