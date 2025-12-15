@@ -1,4 +1,70 @@
+import type { ElementContent, Element as HASTElement } from 'hast';
+
 import type { FileDiffMetadata, ParsedPatch } from '../src/types';
+
+// Assertion helpers
+
+export function assertDefined<T>(
+  value: T | undefined | null,
+  message: string
+): asserts value is T {
+  if (value == null) {
+    throw new Error(message);
+  }
+}
+
+// HAST element helpers
+
+export function isHastElement(node: ElementContent): node is HASTElement {
+  return node.type === 'element';
+}
+
+export function isHastLineElement(node: ElementContent): boolean {
+  return isHastElement(node) && node.properties?.['data-line'] != null;
+}
+
+export function isHastAnnotationElement(node: ElementContent): boolean {
+  return (
+    isHastElement(node) && node.properties?.['data-line-annotation'] != null
+  );
+}
+
+export function getHastLineIndex(node: ElementContent): string | undefined {
+  if (!isHastElement(node)) return undefined;
+  const lineIndex = node.properties?.['data-line-index'];
+  return typeof lineIndex === 'string' ? lineIndex : undefined;
+}
+
+export function getHastAnnotationIndex(
+  node: ElementContent
+): string | undefined {
+  if (!isHastElement(node)) return undefined;
+  const lineAnnotation = node.properties?.['data-line-annotation'];
+  return typeof lineAnnotation === 'string' ? lineAnnotation : undefined;
+}
+
+export function getHastLineType(node: ElementContent): string | undefined {
+  if (!isHastElement(node)) return undefined;
+  const lineType = node.properties?.['data-line-type'];
+  return typeof lineType === 'string' ? lineType : undefined;
+}
+
+export function findHastSlotElements(el: HASTElement): HASTElement[] {
+  const slots: HASTElement[] = [];
+  for (const child of el.children) {
+    if (isHastElement(child)) {
+      if (child.tagName === 'slot') {
+        slots.push(child);
+      }
+      slots.push(...findHastSlotElements(child));
+    }
+  }
+  return slots;
+}
+
+export function countHastAnnotationElements(ast: ElementContent[]): number {
+  return ast.filter(isHastAnnotationElement).length;
+}
 
 export interface VerifyResult {
   valid: boolean;
