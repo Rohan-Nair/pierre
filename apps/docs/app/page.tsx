@@ -20,6 +20,8 @@ import {
 } from './diff-examples/Annotations/constants';
 import { ArbitraryFiles } from './diff-examples/ArbitraryFiles/ArbitraryFiles';
 import { ARBITRARY_DIFF_EXAMPLE } from './diff-examples/ArbitraryFiles/constants';
+import { CustomHeader } from './diff-examples/CustomHeader/CustomHeader';
+import { CUSTOM_HEADER_EXAMPLE } from './diff-examples/CustomHeader/constants';
 import { DiffStyles } from './diff-examples/DiffStyles/DiffStyles';
 import { DIFF_STYLES } from './diff-examples/DiffStyles/constants';
 import { FontStyles } from './diff-examples/FontStyles/FontStyles';
@@ -41,6 +43,7 @@ export default function Home() {
         <ShikiThemesSection />
         <DiffStylesSection />
         <FontStylesSection />
+        <CustomHeaderSection />
         {/* <PrebuiltReact /> */}
         <AnnotationsSection />
         <AcceptRejectSection />
@@ -121,6 +124,14 @@ async function DiffStylesSection() {
 async function FontStylesSection() {
   return (
     <FontStyles prerenderedDiff={await preloadMultiFileDiff(FONT_STYLES)} />
+  );
+}
+
+async function CustomHeaderSection() {
+  return (
+    <CustomHeader
+      prerenderedDiff={await preloadMultiFileDiff(CUSTOM_HEADER_EXAMPLE)}
+    />
   );
 }
 
