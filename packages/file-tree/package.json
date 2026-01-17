@@ -1,6 +1,6 @@
 {
-  "name": "@pierre/diffs",
-  "version": "1.0.6",
+  "name": "@pierre/file-tree",
+  "version": "0.0.1",
   "type": "module",
   "license": "apache-2.0",
   "scripts": {
@@ -25,18 +25,6 @@
     "./ssr": {
       "import": "./dist/ssr/index.js",
       "types": "./dist/ssr/index.d.ts"
-    },
-    "./worker": {
-      "import": "./dist/worker/index.js",
-      "types": "./dist/worker/index.d.ts"
-    },
-    "./worker/worker.js": {
-      "import": "./dist/worker/worker.js",
-      "types": "./dist/worker/worker.d.ts"
-    },
-    "./worker/worker-portable.js": {
-      "import": "./dist/worker/worker-portable.js",
-      "types": "./dist/worker/worker-portable.d.ts"
     }
   },
   "files": [
@@ -47,7 +35,6 @@
   "devDependencies": {
     "@arethetypeswrong/core": "catalog:",
     "@trivago/prettier-plugin-sort-imports": "catalog:",
-    "@types/hast": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "autoprefixer": "catalog:",
@@ -58,13 +45,9 @@
     "typescript": "catalog:"
   },
   "dependencies": {
-    "@shikijs/core": "^3.0.0",
-    "@shikijs/engine-javascript": "^3.0.0",
-    "@shikijs/transformers": "^3.0.0",
-    "diff": "catalog:",
-    "hast-util-to-html": "catalog:",
-    "lru_map": "catalog:",
-    "shiki": "^3.0.0"
+    "@headless-tree/core": "catalog:",
+    "preact": "catalog:",
+    "preact-render-to-string": "catalog:"
   },
   "peerDependencies": {
     "react": "^18.3.1 || ^19.0.0",
