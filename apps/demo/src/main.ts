@@ -5,11 +5,11 @@ import {
   type DiffsThemeNames,
   File,
   type FileContents,
-  FileDiff,
+  type FileDiff,
   FileStream,
   type ParsedPatch,
-  type SupportedLanguages,
-  getFiletypeFromFileName,
+  SimpleVirtualizedFileDiff,
+  SimpleVirtualizer,
   isHighlighterNull,
   parseDiffFromFile,
   parsePatchFiles,
@@ -81,6 +81,9 @@ const poolManager = (() => {
   return manager;
 })();
 
+const intersectionObserver = new SimpleVirtualizer();
+// const intersectionObserver = undefined;
+
 function startStreaming() {
   const container = document.getElementById('wrapper');
   if (container == null) return;
@@ -97,22 +100,10 @@ function startStreaming() {
 
 let parsedPatches: ParsedPatch[] | undefined;
 async function handlePreloadDiff() {
-  if (parsedPatches != null || !isHighlighterNull()) return;
+  if (parsedPatches != null) return;
   const content = await loadPatchContent();
   parsedPatches = parsePatchFiles(content, 'parsed-patch');
-  const langs = new Set<SupportedLanguages>();
-  for (const parsedPatch of parsedPatches) {
-    for (const file of parsedPatch.files) {
-      const lang = getFiletypeFromFileName(file.name);
-      if (lang != null) {
-        langs.add(lang);
-      }
-    }
-  }
-  void preloadHighlighter({
-    langs: Array.from(langs),
-    themes: ['tokyo-night', 'solarized-light'],
-  });
+  console.log('preloaded diff', parsedPatches);
 }
 
 function renderDiff(parsedPatches: ParsedPatch[], manager?: WorkerPoolManager) {
@@ -132,6 +123,7 @@ function renderDiff(parsedPatches: ParsedPatch[], manager?: WorkerPoolManager) {
   let patchIndex = 0;
   const themeType = getThemeType();
 
+  intersectionObserver.setup(globalThis.document);
   for (const parsedPatch of parsedPatches) {
     if (parsedPatch.patchMetadata != null) {
       wrapper.appendChild(createFileMetadata(parsedPatch.patchMetadata));
@@ -140,7 +132,7 @@ function renderDiff(parsedPatches: ParsedPatch[], manager?: WorkerPoolManager) {
     let hunkIndex = 0;
     for (const fileDiff of parsedPatch.files) {
       const fileAnnotations = patchAnnotations[hunkIndex];
-      const instance = new FileDiff<LineCommentMetadata>(
+      const instance = new SimpleVirtualizedFileDiff<LineCommentMetadata>(
         {
           theme: { dark: 'pierre-dark', light: 'pierre-light' },
           diffStyle: unified ? 'unified' : 'split',
@@ -256,18 +248,17 @@ function renderDiff(parsedPatches: ParsedPatch[], manager?: WorkerPoolManager) {
           // },
           // __debugMouseEvents: 'click',
         },
+        intersectionObserver,
         manager
       );
 
       const fileContainer = document.createElement(DIFFS_TAG_NAME);
       wrapper.appendChild(fileContainer);
-      const start = Date.now();
       instance.render({
         fileDiff,
         lineAnnotations: fileAnnotations,
         fileContainer,
       });
-      console.log('Time To Render', fileDiff.name.trim(), Date.now() - start);
       diffInstances.push(instance);
       hunkIndex++;
     }
@@ -293,17 +284,16 @@ export function workerRenderDiff(parsedPatches: ParsedPatch[]) {
       const start = Date.now();
       poolManager?.highlightDiffAST(
         {
+          __id: 'hack',
           onHighlightSuccess(_diff, { code }) {
-            if (code.hunks == null) {
-              console.log(
-                'Worker Render: rendered file:',
-                fileDiff.name,
-                'lines:',
-                code.newLines.length + code.oldLines.length,
-                'time:',
-                Date.now() - start
-              );
-            }
+            console.log(
+              'Worker Render: rendered file:',
+              fileDiff.name,
+              'lines:',
+              code.additionLines.length + code.deletionLines.length,
+              'time:',
+              Date.now() - start
+            );
           },
           onHighlightError(error: unknown) {
             console.error(error);
@@ -348,10 +338,13 @@ if (loadDiff != null) {
         'parsed-patch'
       );
       renderDiff(parsedPatches, poolManager);
+      // window.scrollTo({ top: 99999999999 });
     })();
   }
+
+  // void poolManager.initialize().then(() => handleClick());
   loadDiff.addEventListener('click', handleClick);
-  loadDiff.addEventListener('pointerenter', () => void handlePreloadDiff);
+  loadDiff.addEventListener('pointerenter', () => void handlePreloadDiff());
 }
 
 const wrapCheckbox = document.getElementById('wrap-lines');
@@ -366,14 +359,14 @@ if (wrapCheckbox != null) {
         ...instance.options,
         overflow: checked ? 'wrap' : 'scroll',
       });
-      void instance.rerender();
+      // void instance.rerender();
     }
     for (const instance of fileInstances) {
       instance.setOptions({
         ...instance.options,
         overflow: checked ? 'wrap' : 'scroll',
       });
-      void instance.rerender();
+      // void instance.rerender();
     }
   });
 }
@@ -387,7 +380,7 @@ if (unifiedCheckbox instanceof HTMLInputElement) {
         ...instance.options,
         diffStyle: checked ? 'unified' : 'split',
       });
-      void instance.rerender();
+      // void instance.rerender();
     }
   });
 }
@@ -577,6 +570,7 @@ function getThemeType() {
 }
 
 // For quick testing diffs
+// FAKE_DIFF_LINE_ANNOTATIONS.length = 0;
 // (() => {
 //   const oldFile = {
 //     name: 'file_old.ts',

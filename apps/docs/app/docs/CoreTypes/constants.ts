@@ -33,6 +33,7 @@ interface FileContents {
 
 // Example usage
 const file: FileContents = {
+  // We'll attempt to detect the language based on file extension
   name: 'example.tsx',
   contents: 'export function Hello() { return <div>Hello</div>; }',
   cacheKey: 'example-file-v1', // Must change if contents change
@@ -40,7 +41,8 @@ const file: FileContents = {
 
 // With explicit language override
 const jsonFile: FileContents = {
-  name: 'config', // No extension, so we specify lang
+  // No extension, so we specify lang
+  name: 'config',
   contents: '{ "key": "value" }',
   lang: 'json',
   cacheKey: 'config-file',
@@ -62,7 +64,10 @@ interface FileDiffMetadata {
   // Previous filename (for renames)
   prevName: string | undefined;
 
-  // Optional: Override language for syntax highlighting
+  // Optional: Override language for syntax highlighting. Normally
+  // language is detected automatically base on file extension and you do not
+  // need to set this.  If you need to set a custom lang on a FileDiffMetadata
+  // instance, use the \`setLanguageOverride(diff, 'ruby')\` method.
   lang?: SupportedLanguages;
 
   // Type of change: 'change' | 'rename-pure' | 'rename-changed' | 'new' | 'deleted'
@@ -103,7 +108,7 @@ interface Hunk {
   // Optional context shown in hunk headers (e.g., function name)
   hunkContext: string | undefined;
 
-  // Line position information, mostly used internally for 
+  // Line position information, mostly used internally for
   // rendering optimizations
   splitLineStart: number;
   splitLineCount: number;

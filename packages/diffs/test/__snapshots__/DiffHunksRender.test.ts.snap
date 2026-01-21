@@ -2,137 +2,173 @@
 
 exports[`DiffHunksRenderer proper buffers should be prepended to additions colum in split style: parsed diff 1`] = `
 {
+  "additionLines": [
+    
+"import IconSprite from './IconSprite';
+"
+,
+    
+"import HeaderSimple from '../components/HeaderSimple';
+"
+,
+    
+"import Hero from '../components/Hero';
+"
+,
+    
+"
+"
+,
+    
+"export default function Home() {
+"
+,
+    
+"  return (
+"
+,
+    
+"    <div>
+"
+,
+    
+"      <HeaderSimple />
+"
+,
+    
+"      <IconSprite />
+"
+,
+    
+"      <h1>Hello!</h1>
+"
+,
+    
+"    </div>
+"
+,
+    
+"  );
+"
+,
+    
+"}
+"
+,
+  ],
   "cacheKey": undefined,
+  "deletionLines": [
+    
+"import * as 'react';
+"
+,
+    
+"import IconSprite from './IconSprite';
+"
+,
+    
+"import Header from './Header';
+"
+,
+    
+"
+"
+,
+    
+"export default function Home() {
+"
+,
+    
+"  return (
+"
+,
+    
+"    <div>
+"
+,
+    
+"      <Header />
+"
+,
+    
+"      <IconSprite />
+"
+,
+    
+"    </div>
+"
+,
+    
+"  );
+"
+,
+    
+"}
+"
+,
+  ],
   "hunks": [
     {
       "additionCount": 13,
+      "additionLineIndex": 0,
       "additionLines": 4,
       "additionStart": 1,
       "collapsedBefore": 0,
       "deletionCount": 12,
+      "deletionLineIndex": 0,
       "deletionLines": 3,
       "deletionStart": 1,
       "hunkContent": [
         {
-          "additions": [],
-          "deletions": [
-            
-"import * as 'react';
-"
-,
-          ],
-          "noEOFCRAdditions": false,
-          "noEOFCRDeletions": false,
+          "additionLineIndex": 0,
+          "additions": 0,
+          "deletionLineIndex": 0,
+          "deletions": 1,
           "type": "change",
         },
         {
-          "lines": [
-            
-"import IconSprite from './IconSprite';
-"
-,
-          ],
-          "noEOFCR": false,
+          "additionLineIndex": 0,
+          "deletionLineIndex": 1,
+          "lines": 1,
           "type": "context",
         },
         {
-          "additions": [
-            
-"import HeaderSimple from '../components/HeaderSimple';
-"
-,
-            
-"import Hero from '../components/Hero';
-"
-,
-          ],
-          "deletions": [
-            
-"import Header from './Header';
-"
-,
-          ],
-          "noEOFCRAdditions": false,
-          "noEOFCRDeletions": false,
+          "additionLineIndex": 1,
+          "additions": 2,
+          "deletionLineIndex": 2,
+          "deletions": 1,
           "type": "change",
         },
         {
-          "lines": [
-            
-"
-"
-,
-            
-"export default function Home() {
-"
-,
-            
-"  return (
-"
-,
-            
-"    <div>
-"
-,
-          ],
-          "noEOFCR": false,
+          "additionLineIndex": 3,
+          "deletionLineIndex": 3,
+          "lines": 4,
           "type": "context",
         },
         {
-          "additions": [
-            
-"      <HeaderSimple />
-"
-,
-          ],
-          "deletions": [
-            
-"      <Header />
-"
-,
-          ],
-          "noEOFCRAdditions": false,
-          "noEOFCRDeletions": false,
+          "additionLineIndex": 7,
+          "additions": 1,
+          "deletionLineIndex": 7,
+          "deletions": 1,
           "type": "change",
         },
         {
-          "lines": [
-            
-"      <IconSprite />
-"
-,
-          ],
-          "noEOFCR": false,
+          "additionLineIndex": 8,
+          "deletionLineIndex": 8,
+          "lines": 1,
           "type": "context",
         },
         {
-          "additions": [
-            
-"      <h1>Hello!</h1>
-"
-,
-          ],
-          "deletions": [],
-          "noEOFCRAdditions": false,
-          "noEOFCRDeletions": false,
+          "additionLineIndex": 9,
+          "additions": 1,
+          "deletionLineIndex": 9,
+          "deletions": 0,
           "type": "change",
         },
         {
-          "lines": [
-            
-"    </div>
-"
-,
-            
-"  );
-"
-,
-            
-"}
-"
-,
-          ],
-          "noEOFCR": false,
+          "additionLineIndex": 10,
+          "deletionLineIndex": 9,
+          "lines": 3,
           "type": "context",
         },
       ],
@@ -141,117 +177,16 @@ exports[`DiffHunksRenderer proper buffers should be prepended to additions colum
 "@@ -1,12 +1,13 @@
 "
 ,
+      "noEOFCRAdditions": false,
+      "noEOFCRDeletions": false,
       "splitLineCount": 14,
       "splitLineStart": 0,
       "unifiedLineCount": 16,
       "unifiedLineStart": 0,
     },
   ],
+  "isPartial": false,
   "name": "file.tsx",
-  "newLines": [
-    
-"import IconSprite from './IconSprite';
-"
-,
-    
-"import HeaderSimple from '../components/HeaderSimple';
-"
-,
-    
-"import Hero from '../components/Hero';
-"
-,
-    
-"
-"
-,
-    
-"export default function Home() {
-"
-,
-    
-"  return (
-"
-,
-    
-"    <div>
-"
-,
-    
-"      <HeaderSimple />
-"
-,
-    
-"      <IconSprite />
-"
-,
-    
-"      <h1>Hello!</h1>
-"
-,
-    
-"    </div>
-"
-,
-    
-"  );
-"
-,
-    
-"}
-"
-,
-  ],
-  "oldLines": [
-    
-"import * as 'react';
-"
-,
-    
-"import IconSprite from './IconSprite';
-"
-,
-    
-"import Header from './Header';
-"
-,
-    
-"
-"
-,
-    
-"export default function Home() {
-"
-,
-    
-"  return (
-"
-,
-    
-"    <div>
-"
-,
-    
-"      <Header />
-"
-,
-    
-"      <IconSprite />
-"
-,
-    
-"    </div>
-"
-,
-    
-"  );
-"
-,
-    
-"}
-"
-,
-  ],
   "prevName": undefined,
   "splitLineCount": 14,
   "type": "change",
@@ -2670,137 +2605,173 @@ exports[`DiffHunksRenderer proper buffers should be prepended to additions colum
 
 exports[`DiffHunksRenderer proper buffers should be prepended to deletions colum in split style: parsed diff 1`] = `
 {
+  "additionLines": [
+    
+"import * as 'react';
+"
+,
+    
+"import IconSprite from './IconSprite';
+"
+,
+    
+"import Header from './Header';
+"
+,
+    
+"
+"
+,
+    
+"export default function Home() {
+"
+,
+    
+"  return (
+"
+,
+    
+"    <div>
+"
+,
+    
+"      <Header />
+"
+,
+    
+"      <IconSprite />
+"
+,
+    
+"    </div>
+"
+,
+    
+"  );
+"
+,
+    
+"}
+"
+,
+  ],
   "cacheKey": undefined,
+  "deletionLines": [
+    
+"import IconSprite from './IconSprite';
+"
+,
+    
+"import HeaderSimple from '../components/HeaderSimple';
+"
+,
+    
+"import Hero from '../components/Hero';
+"
+,
+    
+"
+"
+,
+    
+"export default function Home() {
+"
+,
+    
+"  return (
+"
+,
+    
+"    <div>
+"
+,
+    
+"      <HeaderSimple />
+"
+,
+    
+"      <IconSprite />
+"
+,
+    
+"      <h1>Hello!</h1>
+"
+,
+    
+"    </div>
+"
+,
+    
+"  );
+"
+,
+    
+"}
+"
+,
+  ],
   "hunks": [
     {
       "additionCount": 12,
+      "additionLineIndex": 0,
       "additionLines": 3,
       "additionStart": 1,
       "collapsedBefore": 0,
       "deletionCount": 13,
+      "deletionLineIndex": 0,
       "deletionLines": 4,
       "deletionStart": 1,
       "hunkContent": [
         {
-          "additions": [
-            
-"import * as 'react';
-"
-,
-          ],
-          "deletions": [],
-          "noEOFCRAdditions": false,
-          "noEOFCRDeletions": false,
+          "additionLineIndex": 0,
+          "additions": 1,
+          "deletionLineIndex": 0,
+          "deletions": 0,
           "type": "change",
         },
         {
-          "lines": [
-            
-"import IconSprite from './IconSprite';
-"
-,
-          ],
-          "noEOFCR": false,
+          "additionLineIndex": 1,
+          "deletionLineIndex": 0,
+          "lines": 1,
           "type": "context",
         },
         {
-          "additions": [
-            
-"import Header from './Header';
-"
-,
-          ],
-          "deletions": [
-            
-"import HeaderSimple from '../components/HeaderSimple';
-"
-,
-            
-"import Hero from '../components/Hero';
-"
-,
-          ],
-          "noEOFCRAdditions": false,
-          "noEOFCRDeletions": false,
+          "additionLineIndex": 2,
+          "additions": 1,
+          "deletionLineIndex": 1,
+          "deletions": 2,
           "type": "change",
         },
         {
-          "lines": [
-            
-"
-"
-,
-            
-"export default function Home() {
-"
-,
-            
-"  return (
-"
-,
-            
-"    <div>
-"
-,
-          ],
-          "noEOFCR": false,
+          "additionLineIndex": 3,
+          "deletionLineIndex": 3,
+          "lines": 4,
           "type": "context",
         },
         {
-          "additions": [
-            
-"      <Header />
-"
-,
-          ],
-          "deletions": [
-            
-"      <HeaderSimple />
-"
-,
-          ],
-          "noEOFCRAdditions": false,
-          "noEOFCRDeletions": false,
+          "additionLineIndex": 7,
+          "additions": 1,
+          "deletionLineIndex": 7,
+          "deletions": 1,
           "type": "change",
         },
         {
-          "lines": [
-            
-"      <IconSprite />
-"
-,
-          ],
-          "noEOFCR": false,
+          "additionLineIndex": 8,
+          "deletionLineIndex": 8,
+          "lines": 1,
           "type": "context",
         },
         {
-          "additions": [],
-          "deletions": [
-            
-"      <h1>Hello!</h1>
-"
-,
-          ],
-          "noEOFCRAdditions": false,
-          "noEOFCRDeletions": false,
+          "additionLineIndex": 9,
+          "additions": 0,
+          "deletionLineIndex": 9,
+          "deletions": 1,
           "type": "change",
         },
         {
-          "lines": [
-            
-"    </div>
-"
-,
-            
-"  );
-"
-,
-            
-"}
-"
-,
-          ],
-          "noEOFCR": false,
+          "additionLineIndex": 9,
+          "deletionLineIndex": 10,
+          "lines": 3,
           "type": "context",
         },
       ],
@@ -2809,117 +2780,16 @@ exports[`DiffHunksRenderer proper buffers should be prepended to deletions colum
 "@@ -1,13 +1,12 @@
 "
 ,
+      "noEOFCRAdditions": false,
+      "noEOFCRDeletions": false,
       "splitLineCount": 14,
       "splitLineStart": 0,
       "unifiedLineCount": 16,
       "unifiedLineStart": 0,
     },
   ],
+  "isPartial": false,
   "name": "file.tsx",
-  "newLines": [
-    
-"import * as 'react';
-"
-,
-    
-"import IconSprite from './IconSprite';
-"
-,
-    
-"import Header from './Header';
-"
-,
-    
-"
-"
-,
-    
-"export default function Home() {
-"
-,
-    
-"  return (
-"
-,
-    
-"    <div>
-"
-,
-    
-"      <Header />
-"
-,
-    
-"      <IconSprite />
-"
-,
-    
-"    </div>
-"
-,
-    
-"  );
-"
-,
-    
-"}
-"
-,
-  ],
-  "oldLines": [
-    
-"import IconSprite from './IconSprite';
-"
-,
-    
-"import HeaderSimple from '../components/HeaderSimple';
-"
-,
-    
-"import Hero from '../components/Hero';
-"
-,
-    
-"
-"
-,
-    
-"export default function Home() {
-"
-,
-    
-"  return (
-"
-,
-    
-"    <div>
-"
-,
-    
-"      <HeaderSimple />
-"
-,
-    
-"      <IconSprite />
-"
-,
-    
-"      <h1>Hello!</h1>
-"
-,
-    
-"    </div>
-"
-,
-    
-"  );
-"
-,
-    
-"}
-"
-,
-  ],
   "prevName": undefined,
   "splitLineCount": 14,
   "type": "change",
@@ -5338,137 +5208,173 @@ exports[`DiffHunksRenderer proper buffers should be prepended to deletions colum
 
 exports[`DiffHunksRenderer additions and deletions should be empty when unified: parsed diff 1`] = `
 {
+  "additionLines": [
+    
+"import IconSprite from './IconSprite';
+"
+,
+    
+"import HeaderSimple from '../components/HeaderSimple';
+"
+,
+    
+"import Hero from '../components/Hero';
+"
+,
+    
+"
+"
+,
+    
+"export default function Home() {
+"
+,
+    
+"  return (
+"
+,
+    
+"    <div>
+"
+,
+    
+"      <HeaderSimple />
+"
+,
+    
+"      <IconSprite />
+"
+,
+    
+"      <h1>Hello!</h1>
+"
+,
+    
+"    </div>
+"
+,
+    
+"  );
+"
+,
+    
+"}
+"
+,
+  ],
   "cacheKey": undefined,
+  "deletionLines": [
+    
+"import * as 'react';
+"
+,
+    
+"import IconSprite from './IconSprite';
+"
+,
+    
+"import Header from './Header';
+"
+,
+    
+"
+"
+,
+    
+"export default function Home() {
+"
+,
+    
+"  return (
+"
+,
+    
+"    <div>
+"
+,
+    
+"      <Header />
+"
+,
+    
+"      <IconSprite />
+"
+,
+    
+"    </div>
+"
+,
+    
+"  );
+"
+,
+    
+"}
+"
+,
+  ],
   "hunks": [
     {
       "additionCount": 13,
+      "additionLineIndex": 0,
       "additionLines": 4,
       "additionStart": 1,
       "collapsedBefore": 0,
       "deletionCount": 12,
+      "deletionLineIndex": 0,
       "deletionLines": 3,
       "deletionStart": 1,
       "hunkContent": [
         {
-          "additions": [],
-          "deletions": [
-            
-"import * as 'react';
-"
-,
-          ],
-          "noEOFCRAdditions": false,
-          "noEOFCRDeletions": false,
+          "additionLineIndex": 0,
+          "additions": 0,
+          "deletionLineIndex": 0,
+          "deletions": 1,
           "type": "change",
         },
         {
-          "lines": [
-            
-"import IconSprite from './IconSprite';
-"
-,
-          ],
-          "noEOFCR": false,
+          "additionLineIndex": 0,
+          "deletionLineIndex": 1,
+          "lines": 1,
           "type": "context",
         },
         {
-          "additions": [
-            
-"import HeaderSimple from '../components/HeaderSimple';
-"
-,
-            
-"import Hero from '../components/Hero';
-"
-,
-          ],
-          "deletions": [
-            
-"import Header from './Header';
-"
-,
-          ],
-          "noEOFCRAdditions": false,
-          "noEOFCRDeletions": false,
+          "additionLineIndex": 1,
+          "additions": 2,
+          "deletionLineIndex": 2,
+          "deletions": 1,
           "type": "change",
         },
         {
-          "lines": [
-            
-"
-"
-,
-            
-"export default function Home() {
-"
-,
-            
-"  return (
-"
-,
-            
-"    <div>
-"
-,
-          ],
-          "noEOFCR": false,
+          "additionLineIndex": 3,
+          "deletionLineIndex": 3,
+          "lines": 4,
           "type": "context",
         },
         {
-          "additions": [
-            
-"      <HeaderSimple />
-"
-,
-          ],
-          "deletions": [
-            
-"      <Header />
-"
-,
-          ],
-          "noEOFCRAdditions": false,
-          "noEOFCRDeletions": false,
+          "additionLineIndex": 7,
+          "additions": 1,
+          "deletionLineIndex": 7,
+          "deletions": 1,
           "type": "change",
         },
         {
-          "lines": [
-            
-"      <IconSprite />
-"
-,
-          ],
-          "noEOFCR": false,
+          "additionLineIndex": 8,
+          "deletionLineIndex": 8,
+          "lines": 1,
           "type": "context",
         },
         {
-          "additions": [
-            
-"      <h1>Hello!</h1>
-"
-,
-          ],
-          "deletions": [],
-          "noEOFCRAdditions": false,
-          "noEOFCRDeletions": false,
+          "additionLineIndex": 9,
+          "additions": 1,
+          "deletionLineIndex": 9,
+          "deletions": 0,
           "type": "change",
         },
         {
-          "lines": [
-            
-"    </div>
-"
-,
-            
-"  );
-"
-,
-            
-"}
-"
-,
-          ],
-          "noEOFCR": false,
+          "additionLineIndex": 10,
+          "deletionLineIndex": 9,
+          "lines": 3,
           "type": "context",
         },
       ],
@@ -5477,117 +5383,16 @@ exports[`DiffHunksRenderer additions and deletions should be empty when unified:
 "@@ -1,12 +1,13 @@
 "
 ,
+      "noEOFCRAdditions": false,
+      "noEOFCRDeletions": false,
       "splitLineCount": 14,
       "splitLineStart": 0,
       "unifiedLineCount": 16,
       "unifiedLineStart": 0,
     },
   ],
+  "isPartial": false,
   "name": "file.tsx",
-  "newLines": [
-    
-"import IconSprite from './IconSprite';
-"
-,
-    
-"import HeaderSimple from '../components/HeaderSimple';
-"
-,
-    
-"import Hero from '../components/Hero';
-"
-,
-    
-"
-"
-,
-    
-"export default function Home() {
-"
-,
-    
-"  return (
-"
-,
-    
-"    <div>
-"
-,
-    
-"      <HeaderSimple />
-"
-,
-    
-"      <IconSprite />
-"
-,
-    
-"      <h1>Hello!</h1>
-"
-,
-    
-"    </div>
-"
-,
-    
-"  );
-"
-,
-    
-"}
-"
-,
-  ],
-  "oldLines": [
-    
-"import * as 'react';
-"
-,
-    
-"import IconSprite from './IconSprite';
-"
-,
-    
-"import Header from './Header';
-"
-,
-    
-"
-"
-,
-    
-"export default function Home() {
-"
-,
-    
-"  return (
-"
-,
-    
-"    <div>
-"
-,
-    
-"      <Header />
-"
-,
-    
-"      <IconSprite />
-"
-,
-    
-"    </div>
-"
-,
-    
-"  );
-"
-,
-    
-"}
-"
-,
-  ],
   "prevName": undefined,
   "splitLineCount": 14,
   "type": "change",
@@ -7272,75 +7077,79 @@ exports[`DiffHunksRenderer additions and deletions should be empty when unified:
 
 exports[`DiffHunksRenderer a diff with only additions should have an empty deletions column: parsed diff 1`] = `
 {
+  "additionLines": [
+    
+"import IconSprite from './IconSprite';
+"
+,
+    
+"import HeaderSimple from '../components/HeaderSimple';
+"
+,
+    
+"import Hero from '../components/Hero';
+"
+,
+    
+"
+"
+,
+    
+"export default function Home() {
+"
+,
+    
+"  return (
+"
+,
+    
+"    <div>
+"
+,
+    
+"      <HeaderSimple />
+"
+,
+    
+"      <IconSprite />
+"
+,
+    
+"      <h1>Hello!</h1>
+"
+,
+    
+"    </div>
+"
+,
+    
+"  );
+"
+,
+    
+"}
+"
+,
+  ],
   "cacheKey": undefined,
+  "deletionLines": [],
   "hunks": [
     {
       "additionCount": 13,
+      "additionLineIndex": 0,
       "additionLines": 13,
       "additionStart": 1,
       "collapsedBefore": 0,
       "deletionCount": 0,
+      "deletionLineIndex": -1,
       "deletionLines": 0,
       "deletionStart": 0,
       "hunkContent": [
         {
-          "additions": [
-            
-"import IconSprite from './IconSprite';
-"
-,
-            
-"import HeaderSimple from '../components/HeaderSimple';
-"
-,
-            
-"import Hero from '../components/Hero';
-"
-,
-            
-"
-"
-,
-            
-"export default function Home() {
-"
-,
-            
-"  return (
-"
-,
-            
-"    <div>
-"
-,
-            
-"      <HeaderSimple />
-"
-,
-            
-"      <IconSprite />
-"
-,
-            
-"      <h1>Hello!</h1>
-"
-,
-            
-"    </div>
-"
-,
-            
-"  );
-"
-,
-            
-"}
-"
-,
-          ],
-          "deletions": [],
-          "noEOFCRAdditions": false,
-          "noEOFCRDeletions": false,
+          "additionLineIndex": 0,
+          "additions": 13,
+          "deletionLineIndex": -1,
+          "deletions": 0,
           "type": "change",
         },
       ],
@@ -7349,73 +7158,19 @@ exports[`DiffHunksRenderer a diff with only additions should have an empty delet
 "@@ -0,0 +1,13 @@
 "
 ,
+      "noEOFCRAdditions": false,
+      "noEOFCRDeletions": false,
       "splitLineCount": 13,
       "splitLineStart": 0,
       "unifiedLineCount": 13,
       "unifiedLineStart": 0,
     },
   ],
+  "isPartial": false,
   "name": "file.tsx",
-  "newLines": [
-    
-"import IconSprite from './IconSprite';
-"
-,
-    
-"import HeaderSimple from '../components/HeaderSimple';
-"
-,
-    
-"import Hero from '../components/Hero';
-"
-,
-    
-"
-"
-,
-    
-"export default function Home() {
-"
-,
-    
-"  return (
-"
-,
-    
-"    <div>
-"
-,
-    
-"      <HeaderSimple />
-"
-,
-    
-"      <IconSprite />
-"
-,
-    
-"      <h1>Hello!</h1>
-"
-,
-    
-"    </div>
-"
-,
-    
-"  );
-"
-,
-    
-"}
-"
-,
-  ],
-  "oldLines": [
-    "",
-  ],
   "prevName": undefined,
   "splitLineCount": 13,
-  "type": "change",
+  "type": "new",
   "unifiedLineCount": 13,
 }
 `;
@@ -8548,14 +8303,14 @@ exports[`DiffHunksRenderer a diff with only additions should have an empty delet
               {
                 "children": [],
                 "properties": {
-                  "href": "#diffs-icon-symbol-modified",
+                  "href": "#diffs-icon-symbol-added",
                 },
                 "tagName": "use",
                 "type": "element",
               },
             ],
             "properties": {
-              "data-change-icon": "change",
+              "data-change-icon": "new",
               "height": 16,
               "viewBox": "0 0 16 16",
               "width": 16,
@@ -8615,7 +8370,7 @@ exports[`DiffHunksRenderer a diff with only additions should have an empty delet
       },
     ],
     "properties": {
-      "data-change-type": "change",
+      "data-change-type": "new",
       "data-diffs-header": "",
       "data-theme-type": undefined,
       "style": "--diffs-dark:#fbfbfb;--diffs-dark-bg:#070707;--diffs-dark-addition-color:#00cab1;--diffs-dark-deletion-color:#ff2e3f;--diffs-dark-modified-color:#009fff;--diffs-light:#070707;--diffs-light-bg:#ffffff;--diffs-light-addition-color:#00cab1;--diffs-light-deletion-color:#ff2e3f;--diffs-light-modified-color:#009fff;",
@@ -8648,71 +8403,75 @@ exports[`DiffHunksRenderer a diff with only additions should have an empty delet
 
 exports[`DiffHunksRenderer a diff with only deletions should have an empty additions column: parsed diff 1`] = `
 {
+  "additionLines": [],
   "cacheKey": undefined,
+  "deletionLines": [
+    
+"import * as 'react';
+"
+,
+    
+"import IconSprite from './IconSprite';
+"
+,
+    
+"import Header from './Header';
+"
+,
+    
+"
+"
+,
+    
+"export default function Home() {
+"
+,
+    
+"  return (
+"
+,
+    
+"    <div>
+"
+,
+    
+"      <Header />
+"
+,
+    
+"      <IconSprite />
+"
+,
+    
+"    </div>
+"
+,
+    
+"  );
+"
+,
+    
+"}
+"
+,
+  ],
   "hunks": [
     {
       "additionCount": 0,
+      "additionLineIndex": -1,
       "additionLines": 0,
       "additionStart": 0,
       "collapsedBefore": 0,
       "deletionCount": 12,
+      "deletionLineIndex": 0,
       "deletionLines": 12,
       "deletionStart": 1,
       "hunkContent": [
         {
-          "additions": [],
-          "deletions": [
-            
-"import * as 'react';
-"
-,
-            
-"import IconSprite from './IconSprite';
-"
-,
-            
-"import Header from './Header';
-"
-,
-            
-"
-"
-,
-            
-"export default function Home() {
-"
-,
-            
-"  return (
-"
-,
-            
-"    <div>
-"
-,
-            
-"      <Header />
-"
-,
-            
-"      <IconSprite />
-"
-,
-            
-"    </div>
-"
-,
-            
-"  );
-"
-,
-            
-"}
-"
-,
-          ],
-          "noEOFCRAdditions": false,
-          "noEOFCRDeletions": false,
+          "additionLineIndex": -1,
+          "additions": 0,
+          "deletionLineIndex": 0,
+          "deletions": 12,
           "type": "change",
         },
       ],
@@ -8721,69 +8480,19 @@ exports[`DiffHunksRenderer a diff with only deletions should have an empty addit
 "@@ -1,12 +0,0 @@
 "
 ,
+      "noEOFCRAdditions": false,
+      "noEOFCRDeletions": false,
       "splitLineCount": 12,
       "splitLineStart": 0,
       "unifiedLineCount": 12,
       "unifiedLineStart": 0,
     },
   ],
+  "isPartial": false,
   "name": "file.tsx",
-  "newLines": [
-    "",
-  ],
-  "oldLines": [
-    
-"import * as 'react';
-"
-,
-    
-"import IconSprite from './IconSprite';
-"
-,
-    
-"import Header from './Header';
-"
-,
-    
-"
-"
-,
-    
-"export default function Home() {
-"
-,
-    
-"  return (
-"
-,
-    
-"    <div>
-"
-,
-    
-"      <Header />
-"
-,
-    
-"      <IconSprite />
-"
-,
-    
-"    </div>
-"
-,
-    
-"  );
-"
-,
-    
-"}
-"
-,
-  ],
   "prevName": undefined,
   "splitLineCount": 12,
-  "type": "change",
+  "type": "deleted",
   "unifiedLineCount": 12,
 }
 `;
@@ -9808,14 +9517,14 @@ exports[`DiffHunksRenderer a diff with only deletions should have an empty addit
               {
                 "children": [],
                 "properties": {
-                  "href": "#diffs-icon-symbol-modified",
+                  "href": "#diffs-icon-symbol-deleted",
                 },
                 "tagName": "use",
                 "type": "element",
               },
             ],
             "properties": {
-              "data-change-icon": "change",
+              "data-change-icon": "deleted",
               "height": 16,
               "viewBox": "0 0 16 16",
               "width": 16,
@@ -9875,7 +9584,7 @@ exports[`DiffHunksRenderer a diff with only deletions should have an empty addit
       },
     ],
     "properties": {
-      "data-change-type": "change",
+      "data-change-type": "deleted",
       "data-diffs-header": "",
       "data-theme-type": undefined,
       "style": "--diffs-dark:#fbfbfb;--diffs-dark-bg:#070707;--diffs-dark-addition-color:#00cab1;--diffs-dark-deletion-color:#ff2e3f;--diffs-dark-modified-color:#009fff;--diffs-light:#070707;--diffs-light-bg:#ffffff;--diffs-light-addition-color:#00cab1;--diffs-light-deletion-color:#ff2e3f;--diffs-light-modified-color:#009fff;",

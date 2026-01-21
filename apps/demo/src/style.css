@@ -1,3 +1,11 @@
+@font-face {
+  font-family: 'Berkeley Mono';
+  src: url('/fonts/BerkeleyMonoVariable.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   color-scheme: light dark;
 
@@ -36,6 +44,7 @@ html[data-theme-type='dark'] {
 
 html,
 body {
+  overflow-anchor: none;
   background-color: light-dark(white, black);
 }
 
@@ -47,7 +56,6 @@ body,
   padding: 0;
   min-height: 100vh;
   min-height: 100dvh;
-  overscroll-behavior: none;
   touch-action: manipulation;
   zoom: 1;
   -webkit-text-size-adjust: 100%;
@@ -122,7 +130,7 @@ code {
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
-  z-index: 2;
+  z-index: 3;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -141,7 +149,7 @@ code {
   min-width: 0;
   min-height: 0;
   grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
-  overflow: hidden;
+  overflow-anchor: none;
 }
 
 .wrapper[data-diff] {
@@ -151,12 +159,13 @@ code {
   width: auto;
   height: auto;
   display: block;
-  padding-top: 50px;
 }
 
 [data-commit-metadata] {
   margin-top: 10px;
   padding: 10px;
+  font-size: 12px;
+  line-height: 16px;
 }
 
 .files-input {
@@ -188,7 +197,6 @@ code {
 }
 
 diffs-container {
-  content-visibility: auto;
   margin-top: 2px;
 }
 

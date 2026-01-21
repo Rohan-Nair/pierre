@@ -4,6 +4,7 @@
 export * from '../types';
 export * from './File';
 export * from './FileDiff';
+export * from './SimpleVirtualizer';
 export * from './MultiFileDiff';
 export * from './PatchDiff';
 export * from './WorkerPoolContext';

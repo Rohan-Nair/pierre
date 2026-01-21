@@ -78,8 +78,8 @@ export function verifyHunkLineValues(
 ): string[] {
   const errors: string[] = [];
 
-  let expectedSplitLineStart = 0;
-  let expectedUnifiedLineStart = 0;
+  let currentSplitLineTotal = 0;
+  let currentUnifiedLineTotal = 0;
   let lastHunkAdditionEnd = 0;
 
   for (const [hunkIndex, hunk] of file.hunks.entries()) {
@@ -92,10 +92,10 @@ export function verifyHunkLineValues(
 
     for (const content of hunk.hunkContent) {
       if (content.type === 'context') {
-        contextLines += content.lines.length;
+        contextLines += content.lines;
       } else if (content.type === 'change') {
-        additionLines += content.additions.length;
-        deletionLines += content.deletions.length;
+        additionLines += content.additions;
+        deletionLines += content.deletions;
       }
     }
 
@@ -132,9 +132,9 @@ export function verifyHunkLineValues(
     // Verify splitLineCount = sum of (context lines + max(additions, deletions) per change block)
     const expectedSplitLineCount = hunk.hunkContent.reduce((acc, content) => {
       if (content.type === 'context') {
-        return acc + content.lines.length;
+        return acc + content.lines;
       }
-      return acc + Math.max(content.additions.length, content.deletions.length);
+      return acc + Math.max(content.additions, content.deletions);
     }, 0);
     if (hunk.splitLineCount !== expectedSplitLineCount) {
       errors.push(
@@ -145,9 +145,9 @@ export function verifyHunkLineValues(
     // Verify unifiedLineCount = sum of (context lines + additions + deletions per change block)
     const expectedUnifiedLineCount = hunk.hunkContent.reduce((acc, content) => {
       if (content.type === 'context') {
-        return acc + content.lines.length;
+        return acc + content.lines;
       }
-      return acc + content.additions.length + content.deletions.length;
+      return acc + content.additions + content.deletions;
     }, 0);
     if (hunk.unifiedLineCount !== expectedUnifiedLineCount) {
       errors.push(
@@ -155,21 +155,24 @@ export function verifyHunkLineValues(
       );
     }
 
+    const expectedSplitLineStart = currentSplitLineTotal + hunk.collapsedBefore;
     // Verify splitLineStart is cumulative
     if (hunk.splitLineStart !== expectedSplitLineStart) {
       errors.push(
         `${hunkPrefix}: splitLineStart (${hunk.splitLineStart}) !== expected cumulative (${expectedSplitLineStart})`
       );
     }
-    expectedSplitLineStart += hunk.splitLineCount;
+    currentSplitLineTotal += hunk.collapsedBefore + hunk.splitLineCount;
 
+    const expectedUnifiedLineStart =
+      currentUnifiedLineTotal + hunk.collapsedBefore;
     // Verify unifiedLineStart is cumulative
     if (hunk.unifiedLineStart !== expectedUnifiedLineStart) {
       errors.push(
         `${hunkPrefix}: unifiedLineStart (${hunk.unifiedLineStart}) !== expected cumulative (${expectedUnifiedLineStart})`
       );
     }
-    expectedUnifiedLineStart += hunk.unifiedLineCount;
+    currentUnifiedLineTotal += hunk.collapsedBefore + hunk.unifiedLineCount;
 
     // Verify collapsedBefore = additionStart - 1 - lastHunkAdditionEnd
     const expectedCollapsedBefore = Math.max(
@@ -185,20 +188,32 @@ export function verifyHunkLineValues(
   }
 
   // Verify file-level totals
-  const expectedTotalSplitLines = file.hunks.reduce(
-    (sum, h) => sum + h.splitLineCount,
+  let expectedTotalSplitLines = file.hunks.reduce(
+    (sum, h) => sum + h.collapsedBefore + h.splitLineCount,
     0
   );
+  let expectedTotalUnifiedLines = file.hunks.reduce(
+    (sum, h) => sum + h.collapsedBefore + h.unifiedLineCount,
+    0
+  );
+
+  // Account for collapsed lines after the final hunk (only for non-partial diffs)
+  if (file.hunks.length > 0 && !file.isPartial) {
+    const lastHunk = file.hunks[file.hunks.length - 1];
+    const lastHunkEnd = lastHunk.additionStart + lastHunk.additionCount - 1;
+    const totalFileLines = file.additionLines.length;
+    const collapsedAfter = Math.max(totalFileLines - lastHunkEnd, 0);
+
+    expectedTotalSplitLines += collapsedAfter;
+    expectedTotalUnifiedLines += collapsedAfter;
+  }
+
   if (file.splitLineCount !== expectedTotalSplitLines) {
     errors.push(
       `${prefix}: splitLineCount (${file.splitLineCount}) !== sum of hunk splitLineCounts (${expectedTotalSplitLines})`
     );
   }
 
-  const expectedTotalUnifiedLines = file.hunks.reduce(
-    (sum, h) => sum + h.unifiedLineCount,
-    0
-  );
   if (file.unifiedLineCount !== expectedTotalUnifiedLines) {
     errors.push(
       `${prefix}: unifiedLineCount (${file.unifiedLineCount}) !== sum of hunk unifiedLineCounts (${expectedTotalUnifiedLines})`
@@ -254,4 +269,59 @@ export function countSplitRows(result: HunksRenderResult): number {
     }
   }
   return lineIndices.size;
+}
+
+// Virtualization buffer helpers
+
+export interface BufferElement {
+  position: 'before' | 'after';
+  height: number;
+}
+
+export function findBufferElements(ast: ElementContent[]): BufferElement[] {
+  const buffers: BufferElement[] = [];
+
+  for (const node of ast) {
+    if (isHastElement(node)) {
+      const position = node.properties?.['data-virtualized-buffer'];
+      if (position === 'before' || position === 'after') {
+        const style = node.properties?.['style'];
+        const heightMatch =
+          typeof style === 'string' ? style.match(/height:\s*(\d+)px/) : null;
+        const height =
+          heightMatch != null ? Number.parseInt(heightMatch[1], 10) : 0;
+        buffers.push({ position, height });
+      }
+    }
+  }
+
+  return buffers;
+}
+
+export function extractLineNumbers(ast: ElementContent[]): {
+  unifiedIndices: number[];
+  splitIndices: number[];
+} {
+  const unifiedIndices: number[] = [];
+  const splitIndices: number[] = [];
+
+  for (const node of ast) {
+    if (isHastElement(node) && node.properties?.['data-line'] != null) {
+      const lineIndex = node.properties?.['data-line-index'];
+      if (typeof lineIndex === 'string') {
+        // data-line-index format is "unifiedIndex,splitIndex"
+        const [unifiedStr, splitStr] = lineIndex.split(',');
+        const unified = Number.parseInt(unifiedStr, 10);
+        const split = Number.parseInt(splitStr, 10);
+        if (!isNaN(unified)) {
+          unifiedIndices.push(unified);
+        }
+        if (!isNaN(split)) {
+          splitIndices.push(split);
+        }
+      }
+    }
+  }
+
+  return { unifiedIndices, splitIndices };
 }

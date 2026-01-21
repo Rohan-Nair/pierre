@@ -26,16 +26,19 @@ import type {
   BaseCodeOptions,
   FileContents,
   LineAnnotation,
+  PrePropertiesConfig,
   RenderFileMetadata,
   ThemeTypes,
 } from '../types';
 import { areFilesEqual } from '../utils/areFilesEqual';
+import { areLineAnnotationsEqual } from '../utils/areLineAnnotationsEqual';
+import { arePrePropertiesEqual } from '../utils/arePrePropertiesEqual';
 import { createAnnotationWrapperNode } from '../utils/createAnnotationWrapperNode';
-import { createCodeNode } from '../utils/createCodeNode';
 import { createHoverContentNode } from '../utils/createHoverContentNode';
 import { createUnsafeCSSStyleNode } from '../utils/createUnsafeCSSStyleNode';
 import { wrapUnsafeCSS } from '../utils/cssWrappers';
 import { getLineAnnotationName } from '../utils/getLineAnnotationName';
+import { getOrCreateCodeNode } from '../utils/getOrCreateCodeNode';
 import { prerenderHTMLIfNecessary } from '../utils/prerenderHTMLIfNecessary';
 import { setPreNodeProperties } from '../utils/setWrapperNodeProps';
 import type { WorkerPoolManager } from '../worker';
@@ -69,12 +72,18 @@ export interface FileOptions<LAnnotation>
   ): HTMLElement | null;
 }
 
+interface AnnotationElementCache<LAnnotation> {
+  element: HTMLElement;
+  annotation: LineAnnotation<LAnnotation>;
+}
+
 let instanceId = -1;
 
 export class File<LAnnotation = undefined> {
   static LoadedCustomComponent: boolean = DiffsContainerLoaded;
 
-  readonly __id: number = ++instanceId;
+  readonly __id: string = `file:${++instanceId}`;
+
   private fileContainer: HTMLElement | undefined;
   private spriteSVG: SVGElement | undefined;
   private pre: HTMLPreElement | undefined;
@@ -82,6 +91,8 @@ export class File<LAnnotation = undefined> {
   private unsafeCSSStyle: HTMLStyleElement | undefined;
   private hoverContent: HTMLElement | undefined;
   private errorWrapper: HTMLElement | undefined;
+  private lastRenderedHeaderHTML: string | undefined;
+  private appliedPreAttributes: PrePropertiesConfig | undefined;
 
   private headerElement: HTMLElement | undefined;
   private headerMetadata: HTMLElement | undefined;
@@ -91,7 +102,8 @@ export class File<LAnnotation = undefined> {
   private mouseEventManager: MouseEventManager<'file'>;
   private lineSelectionManager: LineSelectionManager;
 
-  private annotationElements: HTMLElement[] = [];
+  private annotationCache: Map<string, AnnotationElementCache<LAnnotation>> =
+    new Map();
   private lineAnnotations: LineAnnotation<LAnnotation>[] = [];
 
   private file: FileContents | undefined;
@@ -199,7 +211,9 @@ export class File<LAnnotation = undefined> {
     }
     this.fileContainer = undefined;
     this.pre = undefined;
+    this.appliedPreAttributes = undefined;
     this.headerElement = undefined;
+    this.lastRenderedHeaderHTML = undefined;
     this.errorWrapper = undefined;
     this.unsafeCSSStyle = undefined;
   }
@@ -219,6 +233,7 @@ export class File<LAnnotation = undefined> {
       }
       if (element instanceof HTMLPreElement) {
         this.pre = element;
+        this.appliedPreAttributes = undefined;
         continue;
       }
       if (
@@ -230,6 +245,7 @@ export class File<LAnnotation = undefined> {
       }
       if ('diffsHeader' in element.dataset) {
         this.headerElement = element;
+        this.lastRenderedHeaderHTML = undefined;
         continue;
       }
     }
@@ -286,6 +302,7 @@ export class File<LAnnotation = undefined> {
       if (this.headerElement != null) {
         this.headerElement.parentNode?.removeChild(this.headerElement);
         this.headerElement = undefined;
+        this.lastRenderedHeaderHTML = undefined;
       }
     }
 
@@ -311,6 +328,7 @@ export class File<LAnnotation = undefined> {
       this.renderHoverUtility();
     } catch (error: unknown) {
       if (error instanceof Error) {
+        console.error(error);
         this.applyErrorToDOM(error, fileContainer);
       }
     }
@@ -318,41 +336,64 @@ export class File<LAnnotation = undefined> {
 
   private renderAnnotations(): void {
     if (this.isContainerManaged || this.fileContainer == null) {
+      for (const { element } of this.annotationCache.values()) {
+        element.parentNode?.removeChild(element);
+      }
+      this.annotationCache.clear();
       return;
     }
-    // Handle annotation elements
-    for (const element of this.annotationElements) {
-      element.parentNode?.removeChild(element);
-    }
-    this.annotationElements.length = 0;
-
+    const staleAnnotations = new Map(this.annotationCache);
     const { renderAnnotation } = this.options;
     if (renderAnnotation != null && this.lineAnnotations.length > 0) {
-      for (const annotation of this.lineAnnotations) {
-        const content = renderAnnotation(annotation);
-        if (content == null) continue;
-        const el = createAnnotationWrapperNode(
-          getLineAnnotationName(annotation)
-        );
-        el.appendChild(content);
-        this.annotationElements.push(el);
-        this.fileContainer.appendChild(el);
+      for (const [index, annotation] of this.lineAnnotations.entries()) {
+        const id = `${index}-${getLineAnnotationName(annotation)}`;
+        let cache = this.annotationCache.get(id);
+        if (
+          cache == null ||
+          !areLineAnnotationsEqual(annotation, cache.annotation)
+        ) {
+          cache?.element.parentElement?.removeChild(cache.element);
+          const content = renderAnnotation(annotation);
+          // If we can't render anything, then we should not render anything
+          // and clear the annotation cache if necessary.
+          if (content == null) {
+            continue;
+          }
+          cache = {
+            element: createAnnotationWrapperNode(
+              getLineAnnotationName(annotation)
+            ),
+            annotation,
+          };
+          cache.element.appendChild(content);
+          this.fileContainer.appendChild(cache.element);
+          this.annotationCache.set(id, cache);
+        }
+        staleAnnotations.delete(id);
       }
+    }
+    for (const [id, { element }] of staleAnnotations.entries()) {
+      this.annotationCache.delete(id);
+      element.parentNode?.removeChild(element);
     }
   }
 
   private renderHoverUtility() {
     const { renderHoverUtility } = this.options;
-    if (this.fileContainer == null || renderHoverUtility == null) return;
-    if (this.hoverContent == null) {
-      this.hoverContent = createHoverContentNode();
-      this.fileContainer.appendChild(this.hoverContent);
+    if (this.fileContainer == null || renderHoverUtility == null) {
+      return;
     }
     const element = renderHoverUtility(this.mouseEventManager.getHoveredLine);
-    this.hoverContent.innerHTML = '';
-    if (element != null) {
-      this.hoverContent.appendChild(element);
+    if (element != null && this.hoverContent != null) {
+      return;
+    } else if (element == null) {
+      this.hoverContent?.parentNode?.removeChild(this.hoverContent);
+      this.hoverContent = undefined;
+      return;
     }
+    this.hoverContent = createHoverContentNode();
+    this.hoverContent.appendChild(element);
+    this.fileContainer.appendChild(this.hoverContent);
   }
 
   private injectUnsafeCSS(): void {
@@ -381,11 +422,10 @@ export class File<LAnnotation = undefined> {
   private applyHunksToDOM(result: FileRenderResult, pre: HTMLPreElement): void {
     this.cleanupErrorWrapper();
     this.applyPreNodeAttributes(pre, result);
-    pre.innerHTML = '';
     // Create code elements and insert HTML content
-    this.code = createCodeNode();
+    this.code = getOrCreateCodeNode({ code: this.code });
     this.code.innerHTML = this.fileRenderer.renderPartialHTML(result.codeAST);
-    pre.appendChild(this.code);
+    pre.replaceChildren(this.code);
     this.injectUnsafeCSS();
     this.mouseEventManager.setup(pre);
     this.lineSelectionManager.setup(pre);
@@ -404,18 +444,22 @@ export class File<LAnnotation = undefined> {
     const { file } = this;
     if (file == null) return;
     this.cleanupErrorWrapper();
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = toHtml(headerAST);
-    const newHeader = tempDiv.firstElementChild;
-    if (!(newHeader instanceof HTMLElement)) {
-      return;
+    const headerHTML = toHtml(headerAST);
+    if (headerHTML !== this.lastRenderedHeaderHTML) {
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = headerHTML;
+      const newHeader = tempDiv.firstElementChild;
+      if (!(newHeader instanceof HTMLElement)) {
+        return;
+      }
+      if (this.headerElement != null) {
+        container.shadowRoot?.replaceChild(newHeader, this.headerElement);
+      } else {
+        container.shadowRoot?.prepend(newHeader);
+      }
+      this.headerElement = newHeader;
+      this.lastRenderedHeaderHTML = headerHTML;
     }
-    if (this.headerElement != null) {
-      container.shadowRoot?.replaceChild(newHeader, this.headerElement);
-    } else {
-      container.shadowRoot?.prepend(newHeader);
-    }
-    this.headerElement = newHeader;
 
     if (this.isContainerManaged) return;
 
@@ -440,10 +484,15 @@ export class File<LAnnotation = undefined> {
     fileContainer?: HTMLElement,
     parentNode?: HTMLElement
   ): HTMLElement {
+    const previousContainer = this.fileContainer;
     this.fileContainer =
       fileContainer ??
       this.fileContainer ??
       document.createElement(DIFFS_TAG_NAME);
+    if (previousContainer != null && previousContainer !== this.fileContainer) {
+      this.lastRenderedHeaderHTML = undefined;
+      this.headerElement = undefined;
+    }
     if (parentNode != null && this.fileContainer.parentNode !== parentNode) {
       parentNode.appendChild(this.fileContainer);
     }
@@ -464,11 +513,13 @@ export class File<LAnnotation = undefined> {
     if (this.pre == null) {
       this.pre = document.createElement('pre');
       container.shadowRoot?.appendChild(this.pre);
+      this.appliedPreAttributes = undefined;
     }
     // If we have a new parent container for the pre element, lets go ahead and
     // move it into the new container
     else if (this.pre.parentNode !== container) {
       container.shadowRoot?.appendChild(this.pre);
+      this.appliedPreAttributes = undefined;
     }
     return this.pre;
   }
@@ -482,8 +533,7 @@ export class File<LAnnotation = undefined> {
       themeType = 'system',
       disableLineNumbers = false,
     } = this.options;
-    setPreNodeProperties({
-      pre,
+    const preProperties: PrePropertiesConfig = {
       split: false,
       themeStyles,
       overflow,
@@ -492,7 +542,12 @@ export class File<LAnnotation = undefined> {
       diffIndicators: 'none',
       disableBackground: true,
       totalLines,
-    });
+    };
+    if (arePrePropertiesEqual(preProperties, this.appliedPreAttributes)) {
+      return;
+    }
+    setPreNodeProperties(pre, preProperties);
+    this.appliedPreAttributes = preProperties;
   }
 
   private applyErrorToDOM(error: Error, container: HTMLElement) {
@@ -501,6 +556,7 @@ export class File<LAnnotation = undefined> {
     pre.innerHTML = '';
     pre.parentNode?.removeChild(pre);
     this.pre = undefined;
+    this.appliedPreAttributes = undefined;
     const shadowRoot =
       container.shadowRoot ?? container.attachShadow({ mode: 'open' });
     this.errorWrapper ??= document.createElement('div');
