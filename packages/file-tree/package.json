@@ -1,6 +1,6 @@
 {
   "name": "@pierre/file-tree",
-  "version": "0.0.1",
+  "version": "0.0.1-beta.1",
   "type": "module",
   "license": "apache-2.0",
   "scripts": {
@@ -32,6 +32,9 @@
     "LICENSE.md",
     "README.md"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "devDependencies": {
     "@arethetypeswrong/core": "catalog:",
     "@trivago/prettier-plugin-sort-imports": "catalog:",
