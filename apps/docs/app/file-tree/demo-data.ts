@@ -25,6 +25,10 @@ export const sharedDemoFileTreeOptions: FileTreeOptions = {
     initialState: {
       expandedItems: ['src', 'src/utils'],
     },
+    fileTreeSearchMode: 'collapse-non-matches',
+  },
+  onSelection: (selection) => {
+    console.log('selection', selection);
   },
   flattenEmptyDirectories: true,
   files: sampleFileList,

@@ -3,6 +3,7 @@
 import type { FileTreeOptions } from '@pierre/file-tree';
 import { FileTree } from '@pierre/file-tree';
 import { FileTree as FileTreeReact } from '@pierre/file-tree/react';
+import type { CSSProperties } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 
 import { sharedDemoFileTreeOptions } from './demo-data';
@@ -38,7 +39,18 @@ export function ClientPage({
   }, [flattenEmptyDirectories]);
 
   return (
-    <div className="m-4">
+    <div
+      className="m-4"
+      style={
+        {
+          // '--ft-font-family': 'monospace',
+          // '--ft-font-size': '11px',
+          // '--ft-row-height': '24px',
+          // '--ft-icon-width': '8px',
+          // '--ft-icon-nudge': '0px',
+        } as CSSProperties
+      }
+    >
       <div
         className="rounded-sm border p-4"
         style={{ borderColor: 'var(--color-border)' }}
@@ -69,7 +81,7 @@ export function ClientPage({
             id="test-file-tree-elem"
             className="mt-2 overflow-hidden rounded-md p-5"
             style={{
-              boxShadow: '0 0 0 1px #1f1f210f, 0 1px 3px #0000000d',
+              boxShadow: '0 0 0 1px var(--color-border), 0 1px 3px #0000000d',
             }}
           />
         </div>
@@ -91,7 +103,7 @@ export function ClientPage({
             options={fileTreeOptions}
             className="mt-2 rounded-md p-5"
             style={{
-              boxShadow: '0 0 0 1px #1f1f210f, 0 1px 3px #0000000d',
+              boxShadow: '0 0 0 1px var(--color-border), 0 1px 3px #0000000d',
             }}
             prerenderedHTML={preloadedFileTreeHtml}
           />
