@@ -1,58 +1,24 @@
+import { FLATTENED_PREFIX } from '../constants';
 import type { FileTreeNode } from '../types';
+import { createIdMaps } from './createIdMaps';
+import { createLoaderUtils } from './createLoaderUtils';
+import type { ChildrenComparator } from './sortChildren';
+import { defaultChildrenComparator, sortChildren } from './sortChildren';
 
 export interface FileListToTreeOptions {
-  root?: {
-    name?: string;
-  };
+  rootId?: string;
+  rootName?: string;
+  sortComparator?: ChildrenComparator;
 }
 
 const ROOT_ID = 'root';
-const FLATTENED_PREFIX = 'f::';
-
-const hashId = (input: string): string => {
-  let h1 = 0xdeadbeef ^ input.length;
-  let h2 = 0x41c6ce57 ^ input.length;
-  for (let i = 0; i < input.length; i += 1) {
-    const char = input.charCodeAt(i);
-    h1 = Math.imul(h1 ^ char, 2654435761);
-    h2 = Math.imul(h2 ^ char, 1597334677);
-  }
-  h1 =
-    Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^
-    Math.imul(h2 ^ (h2 >>> 13), 3266489909);
-  h2 =
-    Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^
-    Math.imul(h1 ^ (h1 >>> 13), 3266489909);
-  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
-};
-
-const createIdFactory = () => {
-  const idByKey = new Map<string, string>();
-  const usedIds = new Set<string>([ROOT_ID]);
-
-  return (key: string): string => {
-    const existing = idByKey.get(key);
-    if (existing != null) {
-      return existing;
-    }
-
-    const base = hashId(key);
-    let id = `n${base}`;
-    let suffix = 0;
-    while (usedIds.has(id)) {
-      suffix += 1;
-      id = `n${base}${suffix.toString(36)}`;
-    }
-
-    usedIds.add(id);
-    idByKey.set(key, id);
-    return id;
-  };
-};
 
 /**
  * Converts a list of file paths into a tree structure suitable for use with FileTree.
  * Generates both direct children and flattened children (single-child folder chains).
+ *
+ * Time complexity: O(n * d) where n = number of files, d = average path depth
+ * Space complexity: O(n * d) for storing all nodes and folder relationships
  *
  * @param filePaths - Array of file path strings (e.g., ['src/index.ts', 'src/utils/helper.ts'])
  * @param options - Optional configuration for root node
@@ -63,9 +29,11 @@ export function fileListToTree(
   filePaths: string[],
   options: FileListToTreeOptions = {}
 ): Record<string, FileTreeNode> {
-  const { root: rootOptions } = options;
-  const rootId = ROOT_ID;
-  const rootName = rootOptions?.name ?? ROOT_ID;
+  const {
+    rootId = ROOT_ID,
+    rootName = ROOT_ID,
+    sortComparator = defaultChildrenComparator,
+  } = options;
 
   const tree: Record<string, FileTreeNode> = {};
   const folderChildren: Map<string, Set<string>> = new Map();
@@ -105,89 +73,18 @@ export function fileListToTree(
   // Helper to check if a path is a folder
   const isFolder = (path: string): boolean => folderChildren.has(path);
 
-  // Helper to get first element from a Set without creating an array
-  const getFirstChild = (children: Set<string>): string | undefined =>
-    children.values().next().value ?? undefined;
+  // Helper to sort children using the configured comparator
+  const sortChildrenArray = (children: string[]): string[] =>
+    sortChildren(children, isFolder, sortComparator);
 
-  // Memoized flattened endpoints to avoid recomputation
-  const flattenedEndpointCache = new Map<string, string | null>();
+  // Adapter to make folderChildren work with the shared helper
+  const getChildrenArray = (path: string): string[] => {
+    const children = folderChildren.get(path);
+    return children != null ? [...children] : [];
+  };
 
-  // Helper to get the flattened endpoint from a folder (iterative, memoized)
-  // Returns the deepest folder in a single-child chain, or null if not flattenable
-  function getFlattenedEndpoint(startPath: string): string | null {
-    const cached = flattenedEndpointCache.get(startPath);
-    if (cached !== undefined) return cached;
-
-    let current = startPath;
-    let endpoint: string | null = null;
-
-    while (true) {
-      const children = folderChildren.get(current);
-      if (children == null || children.size !== 1) break;
-
-      const onlyChild = getFirstChild(children);
-      if (onlyChild == null || !isFolder(onlyChild)) break; // Single child is a file, not flattenable
-
-      endpoint = onlyChild;
-      current = onlyChild;
-    }
-
-    flattenedEndpointCache.set(startPath, endpoint);
-    return endpoint;
-  }
-
-  // Helper to build a flattened name from start to end path
-  function buildFlattenedName(startPath: string, endPath: string): string {
-    const lastSlashIndex = startPath.lastIndexOf('/');
-    const startName =
-      lastSlashIndex >= 0 ? startPath.slice(lastSlashIndex + 1) : startPath;
-    const relativeSuffix = endPath.slice(startPath.length + 1);
-    return relativeSuffix !== '' ? `${startName}/${relativeSuffix}` : startName;
-  }
-
-  // Helper to build flattened children array, only if it differs from direct
-  // Returns undefined if flattened would be identical to direct
-  function buildFlattenedChildren(
-    directChildren: string[]
-  ): string[] | undefined {
-    let flattened: string[] | undefined;
-
-    for (let i = 0; i < directChildren.length; i++) {
-      const child = directChildren[i];
-      if (isFolder(child)) {
-        const flattenedEndpoint = getFlattenedEndpoint(child);
-        if (flattenedEndpoint != null) {
-          // Found a flattenable folder - initialize flattened array if needed
-          flattened ??= directChildren.slice(0, i);
-          flattened.push(`${FLATTENED_PREFIX}${flattenedEndpoint}`);
-        } else if (flattened != null) {
-          flattened.push(child);
-        }
-      } else if (flattened != null) {
-        flattened.push(child);
-      }
-    }
-
-    return flattened;
-  }
-
-  // Helper to collect all folder IDs in a flattenable chain
-  function collectFlattenedFolders(
-    startPath: string,
-    endPath: string
-  ): string[] {
-    const folders: string[] = [startPath];
-    let current = startPath;
-
-    while (current !== endPath) {
-      const children = folderChildren.get(current);
-      if (children == null || children.size !== 1) break;
-      current = getFirstChild(children) as string;
-      folders.push(current);
-    }
-
-    return folders;
-  }
+  // Create flattening utilities with memoization
+  const utils = createLoaderUtils(isFolder, getChildrenArray);
 
   // Track intermediate folders (those that are part of a flattened chain)
   const intermediateFolders = new Set<string>();
@@ -197,11 +94,11 @@ export function fileListToTree(
     for (const child of children) {
       if (!isFolder(child)) continue;
 
-      const flattenedEndpoint = getFlattenedEndpoint(child);
+      const flattenedEndpoint = utils.getFlattenedEndpoint(child);
       if (flattenedEndpoint == null) continue;
 
       // Mark all folders in the chain as intermediate (except the endpoint)
-      const flattenedFolders = collectFlattenedFolders(
+      const flattenedFolders = utils.collectFlattenedFolders(
         child,
         flattenedEndpoint
       );
@@ -213,11 +110,13 @@ export function fileListToTree(
       const flattenedKey = `${FLATTENED_PREFIX}${flattenedEndpoint}`;
       if (tree[flattenedKey] != null) continue;
 
-      const flattenedName = buildFlattenedName(child, flattenedEndpoint);
+      const flattenedName = utils.buildFlattenedName(child, flattenedEndpoint);
       const endpointChildren = folderChildren.get(flattenedEndpoint);
       const endpointDirectChildren =
-        endpointChildren != null ? [...endpointChildren] : [];
-      const endpointFlattenedChildren = buildFlattenedChildren(
+        endpointChildren != null
+          ? sortChildrenArray([...endpointChildren])
+          : [];
+      const endpointFlattenedChildren = utils.buildFlattenedChildren(
         endpointDirectChildren
       );
 
@@ -237,13 +136,13 @@ export function fileListToTree(
 
   // Second pass: create regular folder nodes
   for (const [path, children] of folderChildren) {
-    const directChildren = [...children];
+    const directChildren = sortChildrenArray([...children]);
     const isIntermediate = intermediateFolders.has(path);
 
     // Only compute flattened children for non-intermediate folders
     const flattenedChildren = isIntermediate
       ? undefined
-      : buildFlattenedChildren(directChildren);
+      : utils.buildFlattenedChildren(directChildren);
 
     if (path === rootId) {
       tree[rootId] = {
@@ -268,8 +167,8 @@ export function fileListToTree(
     }
   }
 
-  const idForKey = createIdFactory();
-  const mapKey = (key: string) => (key === rootId ? rootId : idForKey(key));
+  const { getIdForKey } = createIdMaps(rootId);
+  const mapKey = (key: string) => getIdForKey(key);
   const hashedTree: Record<string, FileTreeNode> = {};
 
   for (const [key, node] of Object.entries(tree)) {

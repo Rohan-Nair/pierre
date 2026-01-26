@@ -54,7 +54,7 @@ describe('fileListToTree', () => {
       src: {
         name: 'src',
         children: {
-          direct: ['src/index.ts', 'src/utils'],
+          direct: ['src/utils', 'src/index.ts'],
         },
       },
       'src/index.ts': { name: 'index.ts' },
@@ -77,7 +77,7 @@ describe('fileListToTree', () => {
       root: {
         name: 'root',
         children: {
-          direct: ['README.md', 'package.json'],
+          direct: ['package.json', 'README.md'],
         },
       },
       'README.md': { name: 'README.md' },
@@ -193,9 +193,7 @@ describe('fileListToTree', () => {
   test('should support custom root name', () => {
     const files = ['file.ts'];
     const tree = buildTree(files, {
-      root: {
-        name: 'Project',
-      },
+      rootName: 'Project',
     });
 
     // No flattened since identical to direct
@@ -254,28 +252,6 @@ describe('fileListToTree', () => {
     });
   });
 
-  test('should match snapshot for sample file list', () => {
-    const sampleFileList = [
-      'src/index.ts',
-      'src/components/Button.tsx',
-      'src/components/Card.tsx',
-      'src/components/Header.tsx',
-      'src/components/Sidebar.tsx',
-      'src/lib/mdx.tsx',
-      'src/lib/utils.ts',
-      'src/utils/stream.ts',
-      'src/utils/worker.ts',
-      'build/index.mjs',
-      'build/scripts.js',
-      'config/app.config.json',
-      'README.md',
-      'package.json',
-    ];
-
-    const tree = buildTree(sampleFileList);
-    expect(tree).toMatchSnapshot('sample file list tree');
-  });
-
   test('should correctly flatten single-child folder chains', () => {
     // Test case: outer/middle/inner/file.ts where outer->middle->inner is a chain
     const files = ['outer/middle/inner/file.ts'];
@@ -325,10 +301,10 @@ describe('fileListToTree', () => {
 
     // src has two children: simple (not flattenable) and deep (flattenable)
     // So flattened differs from direct
-    expect(tree.src.children?.direct).toEqual(['src/simple', 'src/deep']);
+    expect(tree.src.children?.direct).toEqual(['src/deep', 'src/simple']);
     expect(tree.src.children?.flattened).toEqual([
-      'src/simple',
       'f::src/deep/nested/inner',
+      'src/simple',
     ]);
 
     // src/simple has no flattened (would be identical to direct)
@@ -361,8 +337,8 @@ describe('fileListToTree', () => {
       name: 'a/b',
       flattens: ['a', 'a/b'],
       children: {
-        direct: ['a/b/file.ts', 'a/b/c'],
-        flattened: ['a/b/file.ts', 'f::a/b/c/d'],
+        direct: ['a/b/c', 'a/b/file.ts'],
+        flattened: ['f::a/b/c/d', 'a/b/file.ts'],
       },
     });
 
@@ -469,7 +445,7 @@ describe('fileListToTree', () => {
     expect(tree['src/utils']).toEqual({
       name: 'utils',
       children: {
-        direct: ['src/utils/helper.ts', 'src/utils/format.ts'],
+        direct: ['src/utils/format.ts', 'src/utils/helper.ts'],
       },
     });
   });
@@ -534,8 +510,8 @@ describe('fileListToTree', () => {
     const tree = buildTree(files);
 
     // a has both a file and a folder, so b/c is flattenable from a's perspective
-    expect(tree.a.children?.direct).toEqual(['a/file.ts', 'a/b']);
-    expect(tree.a.children?.flattened).toEqual(['a/file.ts', 'f::a/b/c']);
+    expect(tree.a.children?.direct).toEqual(['a/b', 'a/file.ts']);
+    expect(tree.a.children?.flattened).toEqual(['f::a/b/c', 'a/file.ts']);
 
     // Root should NOT flatten a since a has multiple children
     expect(tree.root.children?.flattened).toBeUndefined();

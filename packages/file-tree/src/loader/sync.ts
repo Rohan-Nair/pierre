@@ -1,23 +1,38 @@
 import type { TreeDataLoader } from '@headless-tree/core';
 
-import type { FileTreeData, FileTreeNode } from '../types';
+import type { FileTreeNode } from '../types';
+import { fileListToTree } from '../utils/fileListToTree';
+import type { DataLoaderOptions } from './index';
 
-export interface SyncDataLoaderOptions {
-  flattenEmptyDirectories?: boolean;
-}
-
+/**
+ * Creates a sync data loader that pre-builds all nodes upfront.
+ * Best for small-to-medium trees or workflows that touch most nodes.
+ * Tradeoff: higher upfront cost, but faster random access afterward.
+ *
+ * @param filePaths - Array of file path strings
+ * @param options - Configuration options
+ */
 export function generateSyncDataLoader(
-  data: FileTreeData,
-  options: SyncDataLoaderOptions = {}
+  filePaths: string[],
+  options: DataLoaderOptions = {}
 ): TreeDataLoader<FileTreeNode> {
+  const {
+    flattenEmptyDirectories = false,
+    rootId,
+    rootName,
+    sortComparator,
+  } = options;
+
+  const tree = fileListToTree(filePaths, { rootId, rootName, sortComparator });
+
   return {
-    getItem: (id: string) => data[id],
+    getItem: (id: string) => tree[id],
     getChildren: (id: string) => {
-      const children = data[id]?.children;
+      const children = tree[id]?.children;
       if (children == null) {
         return [];
       }
-      if (options.flattenEmptyDirectories === true) {
+      if (flattenEmptyDirectories === true) {
         if (children.flattened != null) {
           return children.flattened;
         }
