@@ -1,4 +1,5 @@
 import {
+  DEFAULT_COLLAPSED_CONTEXT_THRESHOLD,
   DIFF_HEADER_HEIGHT,
   FILE_GAP,
   HUNK_SEPARATOR_HEIGHT,
@@ -186,7 +187,11 @@ export class SimpleVirtualizedFileDiff<
       return;
     }
 
-    const { disableFileHeader = false, expandUnchanged = false } = this.options;
+    const {
+      disableFileHeader = false,
+      expandUnchanged = false,
+      collapsedContextThreshold = DEFAULT_COLLAPSED_CONTEXT_THRESHOLD,
+    } = this.options;
     const diffStyle = this.getDiffStyle();
 
     // Header or initial padding
@@ -202,6 +207,7 @@ export class SimpleVirtualizedFileDiff<
       expandedHunks: expandUnchanged
         ? true
         : this.hunksRenderer.getExpandedHunksMap(),
+      collapsedContextThreshold,
       callback: ({
         hunkIndex,
         collapsedBefore,
@@ -315,8 +321,11 @@ export class SimpleVirtualizedFileDiff<
         renderAll: false,
       };
     }
-    const expandUnchanged = this.options.expandUnchanged ?? false;
-    if (expandUnchanged) {
+    const {
+      expandUnchanged = false,
+      collapsedContextThreshold = DEFAULT_COLLAPSED_CONTEXT_THRESHOLD,
+    } = this.options;
+    if (expandUnchanged || rangeSize <= collapsedContextThreshold) {
       return {
         fromStart: rangeSize,
         fromEnd: 0,
@@ -397,7 +406,11 @@ export class SimpleVirtualizedFileDiff<
     fileTop: number,
     { top, bottom }: RenderWindow
   ): RenderRange {
-    const { disableFileHeader = false, expandUnchanged = false } = this.options;
+    const {
+      disableFileHeader = false,
+      expandUnchanged = false,
+      collapsedContextThreshold = DEFAULT_COLLAPSED_CONTEXT_THRESHOLD,
+    } = this.options;
     const diffStyle = this.getDiffStyle();
     const fileHeight = this.height;
     const lineCount = this.getExpandedLineCount(fileDiff, diffStyle);
@@ -442,6 +455,7 @@ export class SimpleVirtualizedFileDiff<
       expandedHunks: expandUnchanged
         ? true
         : this.hunksRenderer.getExpandedHunksMap(),
+      collapsedContextThreshold,
       callback: ({
         hunkIndex,
         collapsedBefore,
