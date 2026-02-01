@@ -128,7 +128,7 @@ const instance = new FileDiff({
   // 'none' - no indicators
   diffIndicators: 'bars',
 
-  // Show colored backgrounds on changed lines (default: true)
+  // Show colored backgrounds on changed lines (default: false)
   disableBackground: false,
 
   // ─────────────────────────────────────────────────────────────
