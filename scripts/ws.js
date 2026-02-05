@@ -40,7 +40,7 @@ if (!pkgArg || scriptArgs.length === 0) {
 const isPath = pkgArg.startsWith('packages/') || pkgArg.startsWith('apps/');
 const filter = isPath ? `./${pkgArg}` : `@pierre/${pkgArg}`;
 
-const elideLines = isVerbose ? ['--elide-lines=0'] : [];
+const elideLines = ['--elide-lines=0'];
 
 const proc = spawn('bun', ['run', '-F', filter, ...elideLines, ...scriptArgs], {
   stdio: 'inherit',

@@ -92,7 +92,7 @@
   },
   "type": "module",
   "scripts": {
-    "ws": "bun scripts/ws.js",
+    "ws": "bun --silent scripts/ws.js",
     "tsc": "bun run ws \"*\" tsc",
     "clean": "bunx del-cli 'apps/*/.{next,source}' 'packages/*/dist' 'apps/*/tsconfig.tsbuildinfo' 'packages/*/tsconfig.tsbuildinfo'",
     "clean:all": "bun run clean && bunx del-cli '**/node_modules'",
