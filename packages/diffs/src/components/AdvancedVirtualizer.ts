@@ -1,5 +1,10 @@
-import { DEFAULT_THEMES, DIFFS_TAG_NAME, FILE_GAP } from '../constants';
+import {
+  DEFAULT_THEMES,
+  DEFAULT_VIRTUAL_FILE_METRICS,
+  DIFFS_TAG_NAME,
+} from '../constants';
 import { queueRender } from '../managers/UniversalRenderingManager';
+import type { VirtualFileMetrics } from '../types';
 import type { ParsedPatch } from '../types';
 import { createWindowFromScrollPosition } from '../utils/createWindowFromScrollPosition';
 import type { WorkerPoolManager } from '../worker';
@@ -14,9 +19,11 @@ interface RenderedItems<LAnnotations> {
   element: HTMLElement;
 }
 
-let lastScrollPosition = 0;
-
 export class AdvancedVirtualizer<LAnnotations = undefined> {
+  static __STOP = false;
+  static __lastScrollPosition = 0;
+
+  public type = 'advanced';
   private files: AdvancedVirtualizedFileDiff<LAnnotations>[] = [];
   private totalHeightUnified = 0;
   private totalHeightSplit = 0;
@@ -44,6 +51,7 @@ export class AdvancedVirtualizer<LAnnotations = undefined> {
       disableVirtualizationBuffers: true,
       diffStyle: 'split',
     },
+    private metrics: VirtualFileMetrics = DEFAULT_VIRTUAL_FILE_METRICS,
     private workerManager?: WorkerPoolManager | undefined
   ) {
     this.stickyOffset = document.createElement('div');
@@ -64,13 +72,13 @@ export class AdvancedVirtualizer<LAnnotations = undefined> {
     // FIXME(amadeus): Remove me before release
     window.__INSTANCE = this;
     window.__TOGGLE = () => {
-      if (window.__STOP === true) {
-        window.__STOP = false;
-        window.scrollTo({ top: lastScrollPosition });
+      if (AdvancedVirtualizer.__STOP) {
+        AdvancedVirtualizer.__STOP = false;
+        window.scrollTo({ top: AdvancedVirtualizer.__lastScrollPosition });
         queueRender(this._render);
       } else {
-        lastScrollPosition = window.scrollY;
-        window.__STOP = true;
+        AdvancedVirtualizer.__lastScrollPosition = window.scrollY;
+        AdvancedVirtualizer.__STOP = true;
       }
     };
   }
@@ -102,6 +110,7 @@ export class AdvancedVirtualizer<LAnnotations = undefined> {
             fileDiff,
           },
           this.fileOptions,
+          this.metrics,
           this.workerManager
         );
 
@@ -109,8 +118,9 @@ export class AdvancedVirtualizer<LAnnotations = undefined> {
         // to not immediately subscribe
         vFileDiff.cleanUp(true);
         this.files.push(vFileDiff);
-        this.totalHeightUnified += vFileDiff.unifiedHeight + FILE_GAP;
-        this.totalHeightSplit += vFileDiff.splitHeight + FILE_GAP;
+        this.totalHeightUnified +=
+          vFileDiff.unifiedHeight + this.metrics.fileGap;
+        this.totalHeightSplit += vFileDiff.splitHeight + this.metrics.fileGap;
       }
     }
   }
@@ -122,7 +132,7 @@ export class AdvancedVirtualizer<LAnnotations = undefined> {
   }
 
   _render = (): void => {
-    if (this.files.length === 0 || window.__STOP === true) {
+    if (this.files.length === 0 || AdvancedVirtualizer.__STOP) {
       return;
     }
     const { diffStyle = 'split' } = this.fileOptions;
@@ -218,7 +228,7 @@ export class AdvancedVirtualizer<LAnnotations = undefined> {
       );
       const totalHeight = stickyBottom - stickyTop;
       this.stickyOffset.style.height = `${stickyTop}px`;
-      this.stickyContainer.style.top = `${-totalHeight + height + FILE_GAP}px`;
+      this.stickyContainer.style.top = `${-totalHeight + height + this.metrics.fileGap}px`;
       this.stickyContainer.style.bottom = `${-totalHeight + height}px`;
       this.stickyContainer.style.height = `${totalHeight}px`;
     }

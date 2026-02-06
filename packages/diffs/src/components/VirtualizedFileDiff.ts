@@ -1,59 +1,70 @@
-import {
-  DEFAULT_COLLAPSED_CONTEXT_THRESHOLD,
-  DIFF_HEADER_HEIGHT,
-  FILE_GAP,
-  HUNK_SEPARATOR_HEIGHT,
-  LINE_HEIGHT,
-  LINE_HUNK_COUNT,
-} from '../constants';
+import { DEFAULT_COLLAPSED_CONTEXT_THRESHOLD } from '../constants';
 import type {
   ExpansionDirections,
   FileDiffMetadata,
   RenderRange,
   RenderWindow,
-  VirtualWindowSpecs,
+  VirtualFileMetrics,
 } from '../types';
 import { iterateOverDiff } from '../utils/iterateOverDiff';
 import { parseDiffFromFile } from '../utils/parseDiffFromFile';
+import { resolveVirtualFileMetrics } from '../utils/resolveVirtualFileMetrics';
 import type { WorkerPoolManager } from '../worker';
 import {
   FileDiff,
   type FileDiffOptions,
   type FileDiffRenderProps,
 } from './FileDiff';
-import type { SimpleVirtualizer } from './SimpleVirtualizer';
+import type { Virtualizer } from './Virtualizer';
+
+interface ExpandedRegionSpecs {
+  fromStart: number;
+  fromEnd: number;
+  collapsedLines: number;
+  renderAll: boolean;
+}
 
 let instanceId = -1;
 
-export class SimpleVirtualizedFileDiff<
+export class VirtualizedFileDiff<
   LAnnotation = undefined,
 > extends FileDiff<LAnnotation> {
   override readonly __id: string = `little-virtualized-file-diff:${++instanceId}`;
 
   public top: number | undefined;
   public height: number = 0;
-  public override fileDiff: FileDiffMetadata | undefined = undefined;
+  private metrics: VirtualFileMetrics;
   // Sparse map: view-specific line index -> measured height
   // Only stores lines that differ what is returned from `getLineHeight`
   private heightCache: Map<number, number> = new Map();
+  private isVisible: boolean = false;
+  private virtualizer: Virtualizer;
 
   constructor(
     options: FileDiffOptions<LAnnotation> | undefined,
-    private virtualizer: SimpleVirtualizer,
+    virtualizer: Virtualizer,
+    metrics?: Partial<VirtualFileMetrics>,
     workerManager?: WorkerPoolManager,
     isContainerManaged = false
   ) {
     super(options, workerManager, isContainerManaged);
+    const { hunkSeparators = 'line-info' } = this.options;
+    this.virtualizer = virtualizer;
+    this.metrics = resolveVirtualFileMetrics(
+      typeof hunkSeparators === 'function' ? 'custom' : hunkSeparators,
+      metrics
+    );
   }
 
   // Get the height for a line, using cached value if available.
-  // If not cached and hasMetadataLine is true, adds LINE_HEIGHT for the metadata.
-  getLineHeight(lineIndex: number, hasMetadataLine = false): number {
+  // If not cached and hasMetadataLine is true, adds lineHeight for the metadata.
+  private getLineHeight(lineIndex: number, hasMetadataLine = false): number {
     const cached = this.heightCache.get(lineIndex);
     if (cached != null) {
       return cached;
     }
-    return hasMetadataLine ? LINE_HEIGHT * 2 : LINE_HEIGHT;
+    const multiplier = hasMetadataLine ? 2 : 1;
+    return this.metrics.lineHeight * multiplier;
   }
 
   // Override setOptions to clear height cache when diffStyle changes
@@ -79,26 +90,40 @@ export class SimpleVirtualizedFileDiff<
   // Called after render to reconcile estimated vs actual heights.
   // Definitely need to optimize this in cases where there aren't any custom
   // line heights or in cases of extremely large files...
-  reconcileHeights(): void {
+  public reconcileHeights(): void {
+    const { overflow = 'scroll' } = this.options;
+    if (this.fileContainer != null) {
+      this.top = this.virtualizer.getOffsetInScrollContainer(
+        this.fileContainer
+      );
+    }
     if (this.fileContainer == null || this.fileDiff == null) {
       this.height = 0;
       return;
     }
+    // NOTE(amadeus): We can probably be a lot smarter about this, and we
+    // should be thinking about ways to improve this
+    // If the file has no annotations and we are using the scroll variant, then
+    // we can probably skip everything
+    if (
+      overflow === 'scroll' &&
+      this.lineAnnotations.length === 0 &&
+      !this.virtualizer.config.resizeDebugging
+    ) {
+      return;
+    }
     const diffStyle = this.getDiffStyle();
-    this.top = this.virtualizer.getOffsetInScrollContainer(this.fileContainer);
     let hasLineHeightChange = false;
     const codeGroups =
       diffStyle === 'split'
         ? [this.codeDeletions, this.codeAdditions]
         : [this.codeUnified];
 
-    // NOTE(amadeus): We can probably be a lot smarter about this, and we
-    // should be thinking about ways to improve this
-    // If the file has no annotations and we are using the scroll variant, then
-    // we can probably skip everything
     for (const codeGroup of codeGroups) {
       if (codeGroup == null) continue;
-      for (const line of codeGroup.children) {
+      const content = codeGroup.children[1];
+      if (!(content instanceof HTMLElement)) continue;
+      for (const line of content.children) {
         if (!(line instanceof HTMLElement)) continue;
 
         const lineIndexAttr = line.dataset.lineIndex;
@@ -129,7 +154,10 @@ export class SimpleVirtualizedFileDiff<
         hasLineHeightChange = true;
         // Line is back to standard height (e.g., after window resize)
         // Remove from cache
-        if (measuredHeight === LINE_HEIGHT * (hasMetadata ? 2 : 1)) {
+        if (
+          measuredHeight ===
+          this.metrics.lineHeight * (hasMetadata ? 2 : 1)
+        ) {
           this.heightCache.delete(lineIndex);
         }
         // Non-standard height, cache it
@@ -139,24 +167,21 @@ export class SimpleVirtualizedFileDiff<
       }
     }
 
-    if (hasLineHeightChange) {
+    if (hasLineHeightChange || this.virtualizer.config.resizeDebugging) {
       this.computeApproximateSize();
     }
   }
 
-  onScrollUpdate = (_windowSpecs: VirtualWindowSpecs): void => {
+  public onRender = (dirty: boolean): boolean => {
     if (this.fileContainer == null) {
-      return;
+      return false;
     }
-    this.render();
-  };
-
-  onResize = (_windowSpecs: VirtualWindowSpecs): void => {
-    if (this.fileContainer == null) {
-      return;
+    if (dirty) {
+      this.top = this.virtualizer.getOffsetInScrollContainer(
+        this.fileContainer
+      );
     }
-    this.top = this.virtualizer.getOffsetInScrollContainer(this.fileContainer);
-    this.render();
+    return this.render();
   };
 
   override cleanUp(): void {
@@ -175,8 +200,23 @@ export class SimpleVirtualizedFileDiff<
     // this.rerender();
   }
 
+  public setVisibility(visible: boolean): void {
+    if (this.fileContainer == null) {
+      return;
+    }
+    if (visible && !this.isVisible) {
+      this.top = this.virtualizer.getOffsetInScrollContainer(
+        this.fileContainer
+      );
+      this.isVisible = true;
+    } else if (!visible && this.isVisible) {
+      this.isVisible = false;
+      this.rerender();
+    }
+  }
+
   // Compute the approximate size of the file using cached line heights.
-  // Uses LINE_HEIGHT for lines without cached measurements.
+  // Uses lineHeight for lines without cached measurements.
   // We should probably optimize this if there are no custom line heights...
   // The reason we refer to this as `approximate size` is because heights my
   // dynamically change for a number of reasons so we can never be fully sure
@@ -191,14 +231,20 @@ export class SimpleVirtualizedFileDiff<
       disableFileHeader = false,
       expandUnchanged = false,
       collapsedContextThreshold = DEFAULT_COLLAPSED_CONTEXT_THRESHOLD,
+      hunkSeparators = 'line-info',
     } = this.options;
+    const { diffHeaderHeight, fileGap, hunkSeparatorHeight } = this.metrics;
     const diffStyle = this.getDiffStyle();
+    const separatorGap =
+      hunkSeparators === 'simple' || hunkSeparators === 'metadata'
+        ? 0
+        : fileGap;
 
     // Header or initial padding
     if (!disableFileHeader) {
-      this.height += DIFF_HEADER_HEIGHT;
-    } else {
-      this.height += FILE_GAP;
+      this.height += diffHeaderHeight;
+    } else if (hunkSeparators !== 'simple' && hunkSeparators !== 'metadata') {
+      this.height += fileGap;
     }
 
     iterateOverDiff({
@@ -212,37 +258,58 @@ export class SimpleVirtualizedFileDiff<
         hunkIndex,
         collapsedBefore,
         collapsedAfter,
-        unifiedDeletionLineIndex,
-        unifiedAdditionLineIndex,
-        splitLineIndex,
-        noEOFCRAddition,
-        noEOFCRDeletion,
+        deletionLine,
+        additionLine,
       }) => {
+        const splitLineIndex =
+          additionLine != null
+            ? additionLine.splitLineIndex
+            : deletionLine.splitLineIndex;
+        const unifiedLineIndex =
+          additionLine != null
+            ? additionLine.unifiedLineIndex
+            : deletionLine.unifiedLineIndex;
+        const hasMetadata =
+          (additionLine?.noEOFCR ?? false) || (deletionLine?.noEOFCR ?? false);
         if (collapsedBefore > 0) {
           if (hunkIndex > 0) {
-            this.height += FILE_GAP;
+            this.height += separatorGap;
           }
-          this.height += HUNK_SEPARATOR_HEIGHT + FILE_GAP;
+          this.height += hunkSeparatorHeight + separatorGap;
         }
 
-        const lineIndex =
-          diffStyle === 'split'
-            ? splitLineIndex
-            : (unifiedDeletionLineIndex ??
-              unifiedAdditionLineIndex ??
-              splitLineIndex);
-        const hasMetadata = noEOFCRAddition || noEOFCRDeletion;
-        this.height += this.getLineHeight(lineIndex, hasMetadata);
+        this.height += this.getLineHeight(
+          diffStyle === 'split' ? splitLineIndex : unifiedLineIndex,
+          hasMetadata
+        );
 
-        if (collapsedAfter > 0) {
-          this.height += HUNK_SEPARATOR_HEIGHT + FILE_GAP;
+        if (collapsedAfter > 0 && hunkSeparators !== 'simple') {
+          this.height += separatorGap + hunkSeparatorHeight;
         }
       },
     });
 
     // Bottom padding
     if (this.fileDiff.hunks.length > 0) {
-      this.height += FILE_GAP;
+      this.height += fileGap;
+    }
+
+    if (this.fileContainer != null && this.virtualizer.config.resizeDebugging) {
+      const rect = this.fileContainer.getBoundingClientRect();
+      if (rect.height !== this.height) {
+        console.log(
+          'VirtualizedFileDiff.computeApproximateSize: computed height doesnt match',
+          {
+            name: this.fileDiff.name,
+            elementHeight: rect.height,
+            computedHeight: this.height,
+          }
+        );
+      } else {
+        console.log(
+          'VirtualizedFileDiff.computeApproximateSize: computed height IS CORRECT'
+        );
+      }
     }
   }
 
@@ -252,7 +319,7 @@ export class SimpleVirtualizedFileDiff<
     newFile,
     fileDiff,
     ...props
-  }: FileDiffRenderProps<LAnnotation> = {}): void {
+  }: FileDiffRenderProps<LAnnotation> = {}): boolean {
     // NOTE(amadeus): Probably not the safest way to determine first render...
     // but for now...
     const isFirstRender = this.fileContainer == null;
@@ -271,25 +338,33 @@ export class SimpleVirtualizedFileDiff<
 
     if (this.fileDiff == null) {
       console.error(
-        'SimpleVirtualizedFileDiff.render: attempting to virtually render when we dont have the correct data'
+        'VirtualizedFileDiff.render: attempting to virtually render when we dont have the correct data'
       );
-      return;
+      return false;
     }
 
+    this.top ??= this.virtualizer.getOffsetInScrollContainer(fileContainer);
     if (isFirstRender) {
       this.computeApproximateSize();
       // Figure out how to properly manage this...
       this.virtualizer.connect(fileContainer, this);
+      this.isVisible = this.virtualizer.isInstanceVisible(
+        this.top,
+        this.height
+      );
     }
 
-    const { windowSpecs } = this.virtualizer;
-    this.top ??= this.virtualizer.getOffsetInScrollContainer(fileContainer);
+    if (!this.isVisible) {
+      return this.renderPlaceholder(this.height);
+    }
+
+    const windowSpecs = this.virtualizer.getWindowSpecs();
     const renderRange = this.computeRenderRangeFromWindow(
       this.fileDiff,
       this.top,
       windowSpecs
     );
-    super.render({
+    return super.render({
       fileDiff: this.fileDiff,
       fileContainer,
       renderRange,
@@ -307,12 +382,7 @@ export class SimpleVirtualizedFileDiff<
     isPartial: boolean,
     hunkIndex: number,
     rangeSize: number
-  ): {
-    fromStart: number;
-    fromEnd: number;
-    collapsedLines: number;
-    renderAll: boolean;
-  } {
+  ): ExpandedRegionSpecs {
     if (rangeSize <= 0 || isPartial) {
       return {
         fromStart: 0,
@@ -384,7 +454,7 @@ export class SimpleVirtualizedFileDiff<
         (lastHunk.deletionLineIndex + lastHunk.deletionCount);
       if (lastHunk != null && additionRemaining !== deletionRemaining) {
         throw new Error(
-          `SimpleVirtualizedFileDiff: trailing context mismatch (additions=${additionRemaining}, deletions=${deletionRemaining}) for ${fileDiff.name}`
+          `VirtualizedFileDiff: trailing context mismatch (additions=${additionRemaining}, deletions=${deletionRemaining}) for ${fileDiff.name}`
         );
       }
       const trailingRangeSize = Math.min(additionRemaining, deletionRemaining);
@@ -410,13 +480,21 @@ export class SimpleVirtualizedFileDiff<
       disableFileHeader = false,
       expandUnchanged = false,
       collapsedContextThreshold = DEFAULT_COLLAPSED_CONTEXT_THRESHOLD,
+      hunkSeparators = 'line-info',
     } = this.options;
+    const {
+      diffHeaderHeight,
+      fileGap,
+      hunkLineCount,
+      hunkSeparatorHeight,
+      lineHeight,
+    } = this.metrics;
     const diffStyle = this.getDiffStyle();
     const fileHeight = this.height;
     const lineCount = this.getExpandedLineCount(fileDiff, diffStyle);
 
     // Calculate headerRegion before early returns
-    const headerRegion = disableFileHeader ? FILE_GAP : DIFF_HEADER_HEIGHT;
+    const headerRegion = disableFileHeader ? fileGap : diffHeaderHeight;
 
     // File is outside render window
     if (fileTop < top - fileHeight || fileTop > bottom) {
@@ -429,25 +507,40 @@ export class SimpleVirtualizedFileDiff<
           headerRegion -
           // This last file gap represents the bottom padding that buffers
           // should not account for
-          FILE_GAP,
+          fileGap,
       };
     }
 
-    // Whole file is under LINE_HUNK_COUNT, just render it all
-    if (lineCount <= LINE_HUNK_COUNT || fileDiff.hunks.length === 0) {
+    // Whole file is under hunkLineCount, just render it all
+    if (lineCount <= hunkLineCount || fileDiff.hunks.length === 0) {
       return {
         startingLine: 0,
-        totalLines: LINE_HUNK_COUNT,
+        totalLines: hunkLineCount,
         bufferBefore: 0,
         bufferAfter: 0,
       };
     }
+    const estimatedTargetLines = Math.ceil(
+      Math.max(bottom - top, 0) / lineHeight
+    );
+    const totalLines =
+      Math.ceil(estimatedTargetLines / hunkLineCount) * hunkLineCount +
+      hunkLineCount;
+    const totalHunks = totalLines / hunkLineCount;
+    const overflowHunks = totalHunks;
+    const hunkOffsets: number[] = [];
+    // Halfway between top & bottom, represented as an absolute position
+    const viewportCenter = (top + bottom) / 2;
+    const separatorGap =
+      hunkSeparators === 'simple' || hunkSeparators === 'metadata'
+        ? 0
+        : fileGap;
+
     let absoluteLineTop = fileTop + headerRegion;
     let currentLine = 0;
-    const hunkOffsets: number[] = [];
-    let startingLine: number | undefined;
-    let endingLine = 0;
-    let pendingGapAdjustment = 0;
+    let firstVisibleHunk: number | undefined;
+    let centerHunk: number | undefined;
+    let overflowCounter: number | undefined;
 
     iterateOverDiff({
       diff: fileDiff,
@@ -460,72 +553,92 @@ export class SimpleVirtualizedFileDiff<
         hunkIndex,
         collapsedBefore,
         collapsedAfter,
-        unifiedDeletionLineIndex,
-        unifiedAdditionLineIndex,
-        splitLineIndex,
-        noEOFCRAddition,
-        noEOFCRDeletion,
+        deletionLine,
+        additionLine,
       }) => {
-        if (collapsedBefore > 0) {
-          pendingGapAdjustment =
-            HUNK_SEPARATOR_HEIGHT + FILE_GAP + (hunkIndex > 0 ? FILE_GAP : 0);
-          absoluteLineTop += pendingGapAdjustment;
+        const splitLineIndex =
+          additionLine != null
+            ? additionLine.splitLineIndex
+            : deletionLine.splitLineIndex;
+        const unifiedLineIndex =
+          additionLine != null
+            ? additionLine.unifiedLineIndex
+            : deletionLine.unifiedLineIndex;
+        const hasMetadata =
+          (additionLine?.noEOFCR ?? false) || (deletionLine?.noEOFCR ?? false);
+        let gapAdjustment =
+          collapsedBefore > 0
+            ? hunkSeparatorHeight +
+              separatorGap +
+              (hunkIndex > 0 ? separatorGap : 0)
+            : 0;
+        if (hunkIndex === 0 && hunkSeparators === 'simple') {
+          gapAdjustment = 0;
         }
 
-        if (currentLine % LINE_HUNK_COUNT === 0) {
+        absoluteLineTop += gapAdjustment;
+
+        const isAtHunkBoundary = currentLine % hunkLineCount === 0;
+
+        // Track the boundary positional offset at a hunk
+        if (isAtHunkBoundary) {
           hunkOffsets.push(
-            absoluteLineTop - (fileTop + headerRegion + pendingGapAdjustment)
+            absoluteLineTop - (fileTop + headerRegion + gapAdjustment)
           );
-        }
 
-        const lineIndex =
-          diffStyle === 'split'
-            ? splitLineIndex
-            : (unifiedDeletionLineIndex ?? unifiedAdditionLineIndex);
-        if (lineIndex == null) {
-          throw new Error(
-            'SimpleVirtualizedFileDiff.computeRenderRangeFromWindow: Invalid line index'
-          );
+          // Check if we should bail (overflow complete)
+          if (overflowCounter != null) {
+            if (overflowCounter <= 0) {
+              return true;
+            }
+            overflowCounter--;
+          }
         }
 
         const lineHeight = this.getLineHeight(
-          lineIndex,
-          noEOFCRAddition || noEOFCRDeletion
+          diffStyle === 'split' ? splitLineIndex : unifiedLineIndex,
+          hasMetadata
         );
 
+        const currentHunk = Math.floor(currentLine / hunkLineCount);
+
+        // Track visible region
+        if (absoluteLineTop > top - lineHeight && absoluteLineTop < bottom) {
+          firstVisibleHunk ??= currentHunk;
+        }
+
+        // Track which hunk contains the viewport center
+        // If viewport center is above this line and we haven't set centerHunk yet,
+        // this is the first line at or past the center
         if (
-          startingLine == null &&
-          absoluteLineTop > top - lineHeight &&
-          absoluteLineTop < bottom
+          centerHunk == null &&
+          absoluteLineTop + lineHeight > viewportCenter
         ) {
-          startingLine = currentLine;
-          endingLine = currentLine + 1;
-        } else if (startingLine != null && absoluteLineTop < bottom) {
-          endingLine = currentLine + 1;
+          centerHunk = currentHunk;
+        }
+
+        // Start overflow when we are out of the viewport at a hunk boundary
+        if (
+          overflowCounter == null &&
+          absoluteLineTop >= bottom &&
+          isAtHunkBoundary
+        ) {
+          overflowCounter = overflowHunks;
         }
 
         currentLine++;
         absoluteLineTop += lineHeight;
-        if (pendingGapAdjustment > 0) {
-          pendingGapAdjustment = 0;
+
+        if (collapsedAfter > 0 && hunkSeparators !== 'simple') {
+          absoluteLineTop += hunkSeparatorHeight + fileGap;
         }
 
-        if (collapsedAfter > 0) {
-          absoluteLineTop += HUNK_SEPARATOR_HEIGHT + FILE_GAP;
-        }
-
-        if (
-          startingLine != null &&
-          absoluteLineTop > bottom &&
-          currentLine % LINE_HUNK_COUNT === 0
-        ) {
-          return true;
-        }
         return false;
       },
     });
 
-    if (startingLine == null) {
+    // No visible lines found
+    if (firstVisibleHunk == null) {
       return {
         startingLine: 0,
         totalLines: 0,
@@ -534,35 +647,51 @@ export class SimpleVirtualizedFileDiff<
           fileHeight -
           headerRegion -
           // We gotta subtract the bottom padding off of the buffer
-          FILE_GAP,
+          fileGap,
       };
     }
 
-    // Snap to LINE_HUNK_COUNT boundaries
-    startingLine = Math.floor(startingLine / LINE_HUNK_COUNT) * LINE_HUNK_COUNT;
-    const totalLines =
-      Math.ceil((endingLine - startingLine) / LINE_HUNK_COUNT) *
-      LINE_HUNK_COUNT;
+    // Calculate balanced startingLine centered around the viewport center
+    // Fall back to firstVisibleHunk if center wasn't found (e.g., center in a gap)
+    const collectedHunks = hunkOffsets.length;
+    centerHunk ??= firstVisibleHunk;
+    const idealStartHunk = Math.round(centerHunk - totalHunks / 2);
+
+    // Clamp startHunk: at the beginning, reduce totalLines; at the end, shift startHunk back
+    const maxStartHunk = Math.max(0, collectedHunks - totalHunks);
+    const startHunk = Math.max(0, Math.min(idealStartHunk, maxStartHunk));
+    const startingLine = startHunk * hunkLineCount;
+
+    // If we wanted to start before 0, reduce totalLines by the clamped amount
+    const clampedTotalLines =
+      idealStartHunk < 0
+        ? totalLines + idealStartHunk * hunkLineCount
+        : totalLines;
 
     // Use hunkOffsets array for efficient buffer calculations
-    const bufferBefore = hunkOffsets[startingLine / LINE_HUNK_COUNT] ?? 0;
+    const bufferBefore = hunkOffsets[startHunk] ?? 0;
 
     // Calculate bufferAfter using hunkOffset if available, otherwise use cumulative height
-    const finalHunkBufferOffset = (startingLine + totalLines) / LINE_HUNK_COUNT;
+    const finalHunkIndex = startHunk + clampedTotalLines / hunkLineCount;
     const bufferAfter =
-      finalHunkBufferOffset < hunkOffsets.length
+      finalHunkIndex < hunkOffsets.length
         ? fileHeight -
           headerRegion -
-          hunkOffsets[finalHunkBufferOffset] -
+          hunkOffsets[finalHunkIndex] -
           // We gotta subtract the bottom padding off of the buffer
-          FILE_GAP
+          fileGap
         : // We stopped early, calculate from current position
           fileHeight -
           (absoluteLineTop - fileTop) -
           // We gotta subtract the bottom padding off of the buffer
-          FILE_GAP;
+          fileGap;
 
-    return { startingLine, totalLines, bufferBefore, bufferAfter };
+    return {
+      startingLine,
+      totalLines: clampedTotalLines,
+      bufferBefore,
+      bufferAfter,
+    };
   }
 }
 

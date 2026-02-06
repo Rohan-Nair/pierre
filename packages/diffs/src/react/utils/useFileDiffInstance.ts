@@ -7,16 +7,17 @@ import {
 } from 'react';
 
 import { FileDiff, type FileDiffOptions } from '../../components/FileDiff';
-import { SimpleVirtualizedFileDiff } from '../../components/SimpleVirtualizedFileDiff';
+import { VirtualizedFileDiff } from '../../components/VirtualizedFileDiff';
 import type { SelectedLineRange } from '../../managers/LineSelectionManager';
 import type { GetHoveredLineResult } from '../../managers/MouseEventManager';
 import type {
   DiffLineAnnotation,
   FileContents,
   FileDiffMetadata,
+  VirtualFileMetrics,
 } from '../../types';
 import { areOptionsEqual } from '../../utils/areOptionsEqual';
-import { useSimpleVirtualizer } from '../SimpleVirtualizer';
+import { useVirtualizer } from '../Virtualizer';
 import { WorkerPoolContext } from '../WorkerPoolContext';
 import { useStableCallback } from './useStableCallback';
 
@@ -31,6 +32,7 @@ interface UseFileDiffInstanceProps<LAnnotation> {
   lineAnnotations: DiffLineAnnotation<LAnnotation>[] | undefined;
   selectedLines: SelectedLineRange | null | undefined;
   prerenderedHTML: string | undefined;
+  metrics?: VirtualFileMetrics;
 }
 
 interface UseFileDiffInstanceReturn {
@@ -46,11 +48,12 @@ export function useFileDiffInstance<LAnnotation>({
   lineAnnotations,
   selectedLines,
   prerenderedHTML,
+  metrics,
 }: UseFileDiffInstanceProps<LAnnotation>): UseFileDiffInstanceReturn {
-  const simpleVirtualizer = useSimpleVirtualizer();
+  const simpleVirtualizer = useVirtualizer();
   const poolManager = useContext(WorkerPoolContext);
   const instanceRef = useRef<
-    FileDiff<LAnnotation> | SimpleVirtualizedFileDiff<LAnnotation> | null
+    FileDiff<LAnnotation> | VirtualizedFileDiff<LAnnotation> | null
   >(null);
   const ref = useStableCallback((fileContainer: HTMLElement | null) => {
     if (fileContainer != null) {
@@ -60,9 +63,10 @@ export function useFileDiffInstance<LAnnotation>({
         );
       }
       if (simpleVirtualizer != null) {
-        instanceRef.current = new SimpleVirtualizedFileDiff(
+        instanceRef.current = new VirtualizedFileDiff(
           options,
           simpleVirtualizer,
+          metrics,
           poolManager,
           true
         );

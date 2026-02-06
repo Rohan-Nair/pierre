@@ -8,6 +8,7 @@ import type {
 } from 'hast';
 
 import type { SVGSpriteNames } from '../sprite';
+import type { LineTypes } from '../types';
 
 export function createTextNodeElement(value: string): Text {
   return { type: 'text', value };
@@ -83,15 +84,54 @@ export function findCodeElement(
   return undefined;
 }
 
-export function createBufferElement(
-  type: 'before' | 'after',
-  height: number
+export function createGutterWrapper(children?: ElementContent[]): HASTElement {
+  return createHastElement({
+    tagName: 'div',
+    properties: { 'data-gutter': '' },
+    children,
+  });
+}
+
+export function createGutterItem(
+  lineType: LineTypes | 'buffer' | 'separator' | 'annotation',
+  lineNumber: number,
+  lineIndex: string
 ): HASTElement {
   return createHastElement({
     tagName: 'div',
     properties: {
-      'data-virtualized-buffer': type,
-      style: `height: ${height}px`,
+      'data-line-type': lineType,
+      'data-column-number': lineNumber,
+      'data-line-index': lineIndex,
+    },
+    children:
+      lineNumber != null
+        ? [
+            createHastElement({
+              tagName: 'span',
+              properties: { 'data-line-number-content': '' },
+              children: [createTextNodeElement(`${lineNumber}`)],
+            }),
+          ]
+        : undefined,
+  });
+}
+
+export function createGutterGap(
+  type: LineTypes | undefined,
+  bufferType: 'annotation' | 'buffer' | 'metadata',
+  size: number
+): HASTElement {
+  return createHastElement({
+    tagName: 'div',
+    properties: {
+      'data-gutter-buffer': bufferType,
+      'data-buffer-size': size,
+      'data-line-type': bufferType === 'annotation' ? undefined : type,
+      style:
+        bufferType === 'annotation'
+          ? `grid-row: span ${size};`
+          : `grid-row: span ${size};min-height:calc(${size} * 1lh);`,
     },
   });
 }

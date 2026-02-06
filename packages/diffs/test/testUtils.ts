@@ -63,8 +63,20 @@ export function findHastSlotElements(el: HASTElement): HASTElement[] {
   return slots;
 }
 
+// Helper to recursively collect all elements from AST
+export function collectAllElements(nodes: ElementContent[]): HASTElement[] {
+  const elements: HASTElement[] = [];
+  for (const node of nodes) {
+    if (isHastElement(node)) {
+      elements.push(node);
+      elements.push(...collectAllElements(node.children));
+    }
+  }
+  return elements;
+}
+
 export function countHastAnnotationElements(ast: ElementContent[]): number {
-  return ast.filter(isHastAnnotationElement).length;
+  return collectAllElements(ast).filter(isHastAnnotationElement).length;
 }
 
 export interface VerifyResult {
@@ -242,8 +254,8 @@ export function verifyFileDiffHunkValues(diff: FileDiffMetadata): VerifyResult {
 }
 
 export function countRenderedLines(ast: ElementContent[]): number {
-  return ast.filter(
-    (node) => isHastElement(node) && node.properties?.['data-line'] != null
+  return collectAllElements(ast).filter(
+    (node) => node.properties?.['data-line'] != null
   ).length;
 }
 
@@ -251,19 +263,17 @@ export function countRenderedLines(ast: ElementContent[]): number {
 // Each unique line-index represents one visual row in split view
 export function countSplitRows(result: HunksRenderResult): number {
   const lineIndices = new Set<number>();
-  const additionsAST = result.additionsAST ?? [];
-  const deletionsAST = result.deletionsAST ?? [];
+  const { additionsContentAST = [], deletionsContentAST = [] } = result;
 
-  for (const nodes of [additionsAST, deletionsAST]) {
-    for (const node of nodes) {
-      if (isHastElement(node)) {
-        const lineIndex = node.properties?.['data-line-index'];
-        if (typeof lineIndex === 'string') {
-          // data-line-index format is "unifiedIndex,splitIndex"
-          const splitIndex = Number.parseInt(lineIndex.split(',')[1], 10);
-          if (!isNaN(splitIndex)) {
-            lineIndices.add(splitIndex);
-          }
+  for (const nodes of [additionsContentAST, deletionsContentAST]) {
+    const allElements = collectAllElements(nodes);
+    for (const node of allElements) {
+      const lineIndex = node.properties?.['data-line-index'];
+      if (typeof lineIndex === 'string') {
+        // data-line-index format is "unifiedIndex,splitIndex"
+        const splitIndex = Number.parseInt(lineIndex.split(',')[1], 10);
+        if (!isNaN(splitIndex)) {
+          lineIndices.add(splitIndex);
         }
       }
     }
@@ -280,18 +290,17 @@ export interface BufferElement {
 
 export function findBufferElements(ast: ElementContent[]): BufferElement[] {
   const buffers: BufferElement[] = [];
+  const allElements = collectAllElements(ast);
 
-  for (const node of ast) {
-    if (isHastElement(node)) {
-      const position = node.properties?.['data-virtualized-buffer'];
-      if (position === 'before' || position === 'after') {
-        const style = node.properties?.['style'];
-        const heightMatch =
-          typeof style === 'string' ? style.match(/height:\s*(\d+)px/) : null;
-        const height =
-          heightMatch != null ? Number.parseInt(heightMatch[1], 10) : 0;
-        buffers.push({ position, height });
-      }
+  for (const node of allElements) {
+    const position = node.properties?.['data-virtualizer-buffer'];
+    if (position === 'before' || position === 'after') {
+      const style = node.properties?.['style'];
+      const heightMatch =
+        typeof style === 'string' ? style.match(/height:\s*(\d+)px/) : null;
+      const height =
+        heightMatch != null ? Number.parseInt(heightMatch[1], 10) : 0;
+      buffers.push({ position, height });
     }
   }
 
@@ -304,9 +313,10 @@ export function extractLineNumbers(ast: ElementContent[]): {
 } {
   const unifiedIndices: number[] = [];
   const splitIndices: number[] = [];
+  const allElements = collectAllElements(ast);
 
-  for (const node of ast) {
-    if (isHastElement(node) && node.properties?.['data-line'] != null) {
+  for (const node of allElements) {
+    if (node.properties?.['data-line'] != null) {
       const lineIndex = node.properties?.['data-line-index'];
       if (typeof lineIndex === 'string') {
         // data-line-index format is "unifiedIndex,splitIndex"

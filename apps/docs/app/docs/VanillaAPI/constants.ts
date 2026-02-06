@@ -211,6 +211,14 @@ const instance = new FileDiff({
   // MOUSE EVENTS
   // ─────────────────────────────────────────────────────────────
 
+  // Line hover effect. Sets a data-hovered attribute on the
+  // hovered element(s), which you can style via the Styling API.
+  // 'disabled' (default) - no hover effect
+  // 'both' - highlights both line number and line content
+  // 'number' - highlights only the line number
+  // 'line' - highlights only the line content
+  lineHoverHighlight: 'disabled',
+
   // Must be true to enable renderHoverUtility
   enableHoverUtility: false,
 
@@ -370,6 +378,14 @@ const instance = new File({
   // ─────────────────────────────────────────────────────────────
   // MOUSE EVENTS
   // ─────────────────────────────────────────────────────────────
+
+  // Line hover effect. Sets a data-hovered attribute on the
+  // hovered element(s), which you can style via the Styling API.
+  // 'disabled' (default) - no hover effect
+  // 'both' - highlights both line number and line content
+  // 'number' - highlights only the line number
+  // 'line' - highlights only the line content
+  lineHoverHighlight: 'disabled',
 
   // Must be true to enable renderHoverUtility
   enableHoverUtility: false,
@@ -559,12 +575,14 @@ const fullHTML: string = instance.renderFullHTML(result);
 
 // Or render just a specific column to HTML
 const additionsHTML: string = instance.renderPartialHTML(
-  result.additionsAST,
+  instance.renderCodeAST('additions', result),
   'additions' // wraps in <code data-additions>
 );
 
 // Or render without the <code> wrapper
-const rawHTML: string = instance.renderPartialHTML(result.additionsAST);
+const rawHTML: string = instance.renderPartialHTML(
+  instance.renderCodeAST('additions', result)
+);
 
 // Or get the full AST for further transformation
 const fullAST = instance.renderFullAST(result);`,
@@ -627,20 +645,22 @@ for (const patch of patches) {
     const result: HunksRenderResult = await instance.asyncRender(fileDiff);
 
     // result contains hast nodes based on diffStyle:
-    // - 'unified' mode: unifiedAST only
-    // - 'split' mode: additionsAST and deletionsAST
+    // - 'unified' mode: unifiedGutterAST/unifiedContentAST
+    // - 'split' mode: additionsGutterAST/additionsContentAST and deletionsGutterAST/deletionsContentAST
 
     // Render to complete HTML (includes <pre> and <code> wrappers)
     const fullHTML: string = instance.renderFullHTML(result);
 
     // Or render just the unified column with <code> wrapper
     const unifiedHTML: string = instance.renderPartialHTML(
-      result.unifiedAST,
+      instance.renderCodeAST('unified', result),
       'unified'
     );
 
     // Or render without any wrapper
-    const rawHTML: string = instance.renderPartialHTML(result.unifiedAST);
+    const rawHTML: string = instance.renderPartialHTML(
+      instance.renderCodeAST('unified', result)
+    );
 
     // Or get the full AST for custom transformation
     const fullAST = instance.renderFullAST(result);
@@ -686,7 +706,7 @@ export { greet };\`,
 const result: FileRenderResult = await instance.asyncRender(file);
 
 // result contains:
-// - codeAST: array of hast ElementContent nodes for each line
+// - gutterAST/contentAST: arrays of hast ElementContent nodes for each line
 // - preAST: the wrapper <pre> element as a hast node
 // - headerAST: the file header element (if not disabled)
 // - totalLines: number of lines in the file
@@ -696,7 +716,9 @@ const result: FileRenderResult = await instance.asyncRender(file);
 const fullHTML: string = instance.renderFullHTML(result);
 
 // Or render just the code lines to HTML
-const partialHTML: string = instance.renderPartialHTML(result.codeAST);
+const partialHTML: string = instance.renderPartialHTML(
+  instance.renderCodeAST(result)
+);
 
 // Or get the full AST for further transformation
 const fullAST = instance.renderFullAST(result);`,

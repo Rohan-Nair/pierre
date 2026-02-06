@@ -1,13 +1,12 @@
-import {
-  DEFAULT_THEMES,
-  DIFF_HEADER_HEIGHT,
-  FILE_GAP,
-  HUNK_SEPARATOR_HEIGHT,
-  LINE_HEIGHT,
-  LINE_HUNK_COUNT,
-} from '../constants';
-import type { FileDiffMetadata, RenderRange, RenderWindow } from '../types';
+import { DEFAULT_THEMES } from '../constants';
+import type {
+  FileDiffMetadata,
+  RenderRange,
+  RenderWindow,
+  VirtualFileMetrics,
+} from '../types';
 import { areRenderRangesEqual } from '../utils/areRenderRangesEqual';
+import { resolveVirtualFileMetrics } from '../utils/resolveVirtualFileMetrics';
 import type { WorkerPoolManager } from '../worker';
 import { FileDiff, type FileDiffOptions } from './FileDiff';
 
@@ -35,19 +34,26 @@ export class AdvancedVirtualizedFileDiff<
   public splitTop: number;
   public unifiedHeight: number = 0;
   public splitHeight: number = 0;
+  private metrics: VirtualFileMetrics;
 
   override fileDiff: FileDiffMetadata;
   public renderedRange: RenderRange | undefined;
 
   constructor(
     { unifiedTop, splitTop, fileDiff }: PositionProps,
-    override options: FileDiffOptions<LAnnotation> = { theme: DEFAULT_THEMES },
+    options: FileDiffOptions<LAnnotation> = { theme: DEFAULT_THEMES },
+    metrics?: Partial<VirtualFileMetrics>,
     workerManager?: WorkerPoolManager | undefined
   ) {
     super(options, workerManager, true);
     this.fileDiff = fileDiff;
     this.unifiedTop = unifiedTop;
     this.splitTop = splitTop;
+    const { hunkSeparators = 'line-info' } = this.options;
+    this.metrics = resolveVirtualFileMetrics(
+      typeof hunkSeparators === 'function' ? 'custom' : hunkSeparators,
+      metrics
+    );
     this.computeSize();
   }
 
@@ -60,32 +66,33 @@ export class AdvancedVirtualizedFileDiff<
     const {
       options: { disableFileHeader = false },
       fileDiff,
+      metrics: { diffHeaderHeight, fileGap, hunkSeparatorHeight, lineHeight },
     } = this;
 
     // Add header height
     if (!disableFileHeader) {
-      this.unifiedHeight += DIFF_HEADER_HEIGHT;
-      this.splitHeight += DIFF_HEADER_HEIGHT;
+      this.unifiedHeight += diffHeaderHeight;
+      this.splitHeight += diffHeaderHeight;
     } else {
-      this.unifiedHeight += FILE_GAP;
-      this.splitHeight += FILE_GAP;
+      this.unifiedHeight += fileGap;
+      this.splitHeight += fileGap;
     }
 
     // NOTE(amadeus): I wonder if it's worth shortcutting this? It might help
     // to measure these values though and see if it's at all an issue on the
     // big bois
     for (const hunk of fileDiff.hunks) {
-      this.unifiedHeight += hunk.unifiedLineCount * LINE_HEIGHT;
-      this.splitHeight += hunk.splitLineCount * LINE_HEIGHT;
+      this.unifiedHeight += hunk.unifiedLineCount * lineHeight;
+      this.splitHeight += hunk.splitLineCount * lineHeight;
     }
 
     // Add hunk separators height
     const hunkCount = fileDiff.hunks.length;
     const [firstHunk] = fileDiff.hunks;
     if (firstHunk != null) {
-      let hunkSize = (HUNK_SEPARATOR_HEIGHT + FILE_GAP * 2) * (hunkCount - 1);
+      let hunkSize = (hunkSeparatorHeight + fileGap * 2) * (hunkCount - 1);
       if (firstHunk.additionStart > 1 || firstHunk.deletionStart > 1) {
-        hunkSize += HUNK_SEPARATOR_HEIGHT + FILE_GAP;
+        hunkSize += hunkSeparatorHeight + fileGap;
       }
       this.unifiedHeight += hunkSize;
       this.splitHeight += hunkSize;
@@ -93,8 +100,8 @@ export class AdvancedVirtualizedFileDiff<
 
     // If there are hunks of code, then we gotta render some bottom padding
     if (hunkCount > 0) {
-      this.unifiedHeight += FILE_GAP;
-      this.splitHeight += FILE_GAP;
+      this.unifiedHeight += fileGap;
+      this.splitHeight += fileGap;
     }
   }
 
@@ -117,6 +124,13 @@ export class AdvancedVirtualizedFileDiff<
     bottom,
   }: RenderWindow): RenderRange {
     const { diffStyle = 'split', disableFileHeader = false } = this.options;
+    const {
+      diffHeaderHeight,
+      fileGap,
+      hunkLineCount,
+      hunkSeparatorHeight,
+      lineHeight,
+    } = this.metrics;
     const { lineCount, fileTop, fileHeight } = getSpecs(this, diffStyle);
 
     // We should never hit this theoretically, but if so, gtfo and yell loudly,
@@ -134,8 +148,8 @@ export class AdvancedVirtualizedFileDiff<
       };
     }
 
-    // Whole file is under LINE_HUNK_COUNT, just render it all
-    if (lineCount <= LINE_HUNK_COUNT) {
+    // Whole file is under HUNK_LINE_COUNT, just render it all
+    if (lineCount <= hunkLineCount) {
       return {
         startingLine: 0,
         totalLines: Infinity,
@@ -144,7 +158,7 @@ export class AdvancedVirtualizedFileDiff<
       };
     }
 
-    const headerRegion = disableFileHeader ? FILE_GAP : DIFF_HEADER_HEIGHT;
+    const headerRegion = disableFileHeader ? fileGap : diffHeaderHeight;
     let absoluteLineTop = fileTop + headerRegion;
     let currentLine = 0;
     const hunkOffsets: number[] = [];
@@ -153,23 +167,23 @@ export class AdvancedVirtualizedFileDiff<
     for (const hunk of this.fileDiff.hunks) {
       let hunkGap = 0;
       if (hunk.additionStart > 1 || hunk.deletionStart > 1) {
-        hunkGap = HUNK_SEPARATOR_HEIGHT + FILE_GAP;
+        hunkGap = hunkSeparatorHeight + fileGap;
         if (hunk !== this.fileDiff.hunks[0]) {
-          hunkGap += FILE_GAP;
+          hunkGap += fileGap;
         }
         absoluteLineTop += hunkGap;
       }
       const hunkLineCount =
         diffStyle === 'split' ? hunk.splitLineCount : hunk.unifiedLineCount;
       for (let l = 0; l < hunkLineCount; l++) {
-        if (currentLine % LINE_HUNK_COUNT === 0) {
+        if (currentLine % hunkLineCount === 0) {
           hunkOffsets.push(
             absoluteLineTop - (fileTop + headerRegion + (l === 0 ? hunkGap : 0))
           );
         }
         if (
           startingLine == null &&
-          absoluteLineTop > top - LINE_HEIGHT &&
+          absoluteLineTop > top - lineHeight &&
           absoluteLineTop < bottom
         ) {
           startingLine = currentLine;
@@ -178,7 +192,7 @@ export class AdvancedVirtualizedFileDiff<
           endingLine++;
         }
         currentLine++;
-        absoluteLineTop += LINE_HEIGHT;
+        absoluteLineTop += lineHeight;
       }
     }
 
@@ -191,19 +205,18 @@ export class AdvancedVirtualizedFileDiff<
       };
     }
 
-    startingLine = Math.floor(startingLine / LINE_HUNK_COUNT) * LINE_HUNK_COUNT;
+    startingLine = Math.floor(startingLine / hunkLineCount) * hunkLineCount;
     const totalLines =
-      Math.ceil((endingLine - startingLine) / LINE_HUNK_COUNT) *
-      LINE_HUNK_COUNT;
+      Math.ceil((endingLine - startingLine) / hunkLineCount) * hunkLineCount;
 
-    const finalHunkBufferOffset = (startingLine + totalLines) / LINE_HUNK_COUNT;
-    const bufferBefore = hunkOffsets[startingLine / LINE_HUNK_COUNT] ?? 0;
+    const finalHunkBufferOffset = (startingLine + totalLines) / hunkLineCount;
+    const bufferBefore = hunkOffsets[startingLine / hunkLineCount] ?? 0;
     const bufferAfter =
       finalHunkBufferOffset < hunkOffsets.length
         ? fileHeight -
           headerRegion -
           hunkOffsets[finalHunkBufferOffset] -
-          FILE_GAP // this is to account for bottom padding of the code container
+          fileGap // this is to account for bottom padding of the code container
         : 0;
     return { startingLine, totalLines, bufferBefore, bufferAfter };
   }

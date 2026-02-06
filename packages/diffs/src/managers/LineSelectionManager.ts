@@ -1,7 +1,5 @@
-import type { AnnotationSide } from '../types';
+import type { SelectionSide } from '../types';
 import { areSelectionsEqual } from '../utils/areSelectionsEqual';
-
-export type SelectionSide = AnnotationSide;
 
 export interface SelectedLineRange {
   start: number;
@@ -10,16 +8,22 @@ export interface SelectedLineRange {
   endSide?: SelectionSide;
 }
 
+export type GetLineIndexUtility = (
+  lineNumber: number,
+  side?: SelectionSide
+) => [number, number] | undefined;
+
 export interface LineSelectionOptions {
   enableLineSelection?: boolean;
   onLineSelected?: (range: SelectedLineRange | null) => void;
   onLineSelectionStart?: (range: SelectedLineRange | null) => void;
   onLineSelectionEnd?: (range: SelectedLineRange | null) => void;
+  getLineIndex?: GetLineIndexUtility;
 }
 
 interface MouseInfo {
   lineNumber: number;
-  eventSide: AnnotationSide;
+  eventSide: SelectionSide | undefined;
   lineIndex: number;
 }
 
@@ -34,7 +38,7 @@ export class LineSelectionManager {
   private pre: HTMLPreElement | undefined;
   private selectedRange: SelectedLineRange | null = null;
   private renderedSelectionRange: SelectedLineRange | null | undefined;
-  private anchor: { line: number; side: SelectionSide } | undefined;
+  private anchor: { line: number; side: SelectionSide | undefined } | undefined;
   private _queuedRender: number | undefined;
 
   constructor(private options: LineSelectionOptions = {}) {}
@@ -53,9 +57,7 @@ export class LineSelectionManager {
       cancelAnimationFrame(this._queuedRender);
       this._queuedRender = undefined;
     }
-    if (this.pre != null) {
-      delete this.pre.dataset.interactiveLineNumbers;
-    }
+    this.pre?.removeAttribute('data-interactive-line-numbers');
     this.pre = undefined;
   }
 
@@ -100,11 +102,21 @@ export class LineSelectionManager {
     return this.selectedRange;
   }
 
+  getLineIndex(
+    lineNumber: number,
+    side?: SelectionSide
+  ): [number, number] | undefined {
+    const { getLineIndex } = this.options;
+    return getLineIndex != null
+      ? getLineIndex(lineNumber, side)
+      : [lineNumber - 1, lineNumber - 1];
+  }
+
   private attachEventListeners(): void {
     if (this.pre == null) return;
     // Lets run a cleanup, just in case
     this.removeEventListeners();
-    this.pre.dataset.interactiveLineNumbers = '';
+    this.pre.setAttribute('data-interactive-line-numbers', '');
     this.pre.addEventListener('pointerdown', this.handleMouseDown);
   }
 
@@ -113,7 +125,7 @@ export class LineSelectionManager {
     this.pre.removeEventListener('pointerdown', this.handleMouseDown);
     document.removeEventListener('pointermove', this.handleMouseMove);
     document.removeEventListener('pointerup', this.handleMouseUp);
-    delete this.pre.dataset.interactiveLineNumbers;
+    this.pre.removeAttribute('data-interactive-line-numbers');
   }
 
   private handleMouseDown = (event: PointerEvent): void => {
@@ -122,15 +134,15 @@ export class LineSelectionManager {
       event.button === 0
         ? this.getMouseEventDataForPath(event.composedPath(), 'click')
         : undefined;
-    if (mouseEventData == null) {
+    if (mouseEventData == null || this.pre == null) {
       return;
     }
     event.preventDefault();
     const { lineNumber, eventSide, lineIndex } = mouseEventData;
     if (event.shiftKey && this.selectedRange != null) {
-      const range = this.deriveRowRangeFromDOM(
+      const range = this.getIndexesFromSelection(
         this.selectedRange,
-        this.pre?.dataset.type === 'split'
+        this.pre.getAttribute('data-diff-type') === 'split'
       );
       if (range == null) return;
       const useStart =
@@ -187,10 +199,10 @@ export class LineSelectionManager {
   };
 
   private updateSelection(currentLine: null): void;
-  private updateSelection(currentLine: number, side: AnnotationSide): void;
+  private updateSelection(currentLine: number, side?: SelectionSide): void;
   private updateSelection(
     currentLine: number | null,
-    side?: AnnotationSide
+    side?: SelectionSide
   ): void {
     if (currentLine == null) {
       this.selectedRange = null;
@@ -205,6 +217,30 @@ export class LineSelectionManager {
       };
     }
     this._queuedRender ??= requestAnimationFrame(this.renderSelection);
+  }
+
+  private getIndexesFromSelection(
+    selectedRange: SelectedLineRange,
+    split: boolean
+  ): { start: number; end: number } | undefined {
+    if (this.pre == null) {
+      return undefined;
+    }
+    const startIndexes = this.getLineIndex(
+      selectedRange.start,
+      selectedRange.side
+    );
+    const finalIndexes = this.getLineIndex(
+      selectedRange.end,
+      selectedRange.endSide ?? selectedRange.side
+    );
+
+    return startIndexes != null && finalIndexes != null
+      ? {
+          start: split ? startIndexes[1] : startIndexes[0],
+          end: split ? finalIndexes[1] : finalIndexes[0],
+        }
+      : undefined;
   }
 
   private renderSelection = (): void => {
@@ -231,7 +267,7 @@ export class LineSelectionManager {
       return;
     }
 
-    const codeElements = this.pre.querySelectorAll('[data-code]');
+    const { children: codeElements } = this.pre;
     if (codeElements.length === 0) return;
     if (codeElements.length > 2) {
       console.error(codeElements);
@@ -239,8 +275,8 @@ export class LineSelectionManager {
         'LineSelectionManager.applySelectionToDOM: Somehow there are more than 2 code elements...'
       );
     }
-    const split = this.pre.dataset.type === 'split';
-    const rowRange = this.deriveRowRangeFromDOM(this.selectedRange, split);
+    const split = this.pre.getAttribute('data-diff-type') === 'split';
+    const rowRange = this.getIndexesFromSelection(this.selectedRange, split);
     if (rowRange == null) {
       console.error({ rowRange, selectedRange: this.selectedRange });
       throw new Error(
@@ -251,9 +287,24 @@ export class LineSelectionManager {
     const first = Math.min(rowRange.start, rowRange.end);
     const last = Math.max(rowRange.start, rowRange.end);
     for (const code of codeElements) {
-      for (const element of code.children) {
-        if (!(element instanceof HTMLElement)) continue;
-        const lineIndex = this.getLineIndex(element, split);
+      const [gutter, content] = code.children;
+      const len = content.children.length;
+      if (len !== gutter.children.length) {
+        throw new Error(
+          'LineSelectionManager.renderSelection: gutter and content children dont match, something is wrong'
+        );
+      }
+      for (let i = 0; i < len; i++) {
+        const contentElement = content.children[i];
+        const gutterElement = gutter.children[i];
+        if (
+          !(contentElement instanceof HTMLElement) ||
+          !(gutterElement instanceof HTMLElement)
+        ) {
+          continue;
+        }
+
+        const lineIndex = this.parseLineIndex(contentElement, split);
         if ((lineIndex ?? 0) > last) break;
         if (lineIndex == null || lineIndex < first) continue;
         let attributeValue = isSingle
@@ -263,28 +314,34 @@ export class LineSelectionManager {
             : lineIndex === last
               ? 'last'
               : '';
-        element.setAttribute('data-selected-line', attributeValue);
+        contentElement.setAttribute('data-selected-line', attributeValue);
+        gutterElement.setAttribute('data-selected-line', attributeValue);
         // If we have a line annotation following our selected line, we should
         // mark it as selected as well
         if (
-          element.nextSibling instanceof HTMLElement &&
-          element.nextSibling.hasAttribute('data-line-annotation')
+          gutterElement.nextSibling instanceof HTMLElement &&
+          contentElement.nextSibling instanceof HTMLElement &&
+          contentElement.nextSibling.hasAttribute('data-line-annotation')
         ) {
           // Depending on the line's attribute value, lets go ahead and correct
           // it when adding in the annotation row
           if (isSingle) {
             // Single technically becomes 2 selected lines
             attributeValue = 'last';
-            element.setAttribute('data-selected-line', 'first');
+            contentElement.setAttribute('data-selected-line', 'first');
           } else if (lineIndex === first) {
             // We don't want apply 'first' to the line annotation
             attributeValue = '';
           } else if (lineIndex === last) {
             // the annotation will become the last selected line and therefore
             // our existing line should no longer be last
-            element.setAttribute('data-selected-line', '');
+            contentElement.setAttribute('data-selected-line', '');
           }
-          element.nextSibling.setAttribute(
+          contentElement.nextSibling.setAttribute(
+            'data-selected-line',
+            attributeValue
+          );
+          gutterElement.nextSibling.setAttribute(
             'data-selected-line',
             attributeValue
           );
@@ -292,65 +349,6 @@ export class LineSelectionManager {
       }
     }
   };
-
-  private deriveRowRangeFromDOM(
-    range: SelectedLineRange,
-    split: boolean
-  ): { start: number; end: number } | undefined {
-    if (range == null) return undefined;
-    const start = this.findRowIndexForLineNumber(
-      range.start,
-      range.side,
-      split
-    );
-    const end =
-      range.end === range.start &&
-      (range.endSide == null || range.endSide === range.side)
-        ? start
-        : this.findRowIndexForLineNumber(
-            range.end,
-            range.endSide ?? range.side,
-            split
-          );
-    return start != null && end != null ? { start, end } : undefined;
-  }
-
-  private findRowIndexForLineNumber(
-    lineNumber: number,
-    targetSide: SelectionSide = 'additions',
-    split: boolean
-  ): number | undefined {
-    if (this.pre == null) return undefined;
-    const elements = Array.from(
-      this.pre.querySelectorAll(`[data-line="${lineNumber}"]`)
-    );
-    // Given how unified diffs can order things, we need to always process
-    // `[data-line]` elements before `[data-alt-line]`
-    elements.push(
-      ...Array.from(
-        this.pre.querySelectorAll(`[data-alt-line="${lineNumber}"]`)
-      )
-    );
-    if (elements.length === 0) return undefined;
-
-    for (const element of elements) {
-      if (!(element instanceof HTMLElement)) {
-        continue;
-      }
-      const side = this.getLineSideFromElement(element);
-      if (side === targetSide) {
-        return this.getLineIndex(element, split);
-      } else if (parseInt(element.dataset.altLine ?? '') === lineNumber) {
-        return this.getLineIndex(element, split);
-      }
-    }
-    console.error(
-      'LineSelectionManager.findRowIndexForLineNumber: Invalid selection',
-      lineNumber,
-      targetSide
-    );
-    return undefined;
-  }
 
   private notifySelectionChange(): void {
     const { onLineSelected } = this.options;
@@ -375,54 +373,47 @@ export class LineSelectionManager {
     path: (EventTarget | undefined)[],
     eventType: 'click' | 'move'
   ): MouseInfo | undefined {
+    if (this.pre == null) {
+      return undefined;
+    }
     let lineNumber: number | undefined;
     let lineIndex: number | undefined;
     let isNumberColumn = false;
-    let eventSide: AnnotationSide | undefined;
+    let eventSide: SelectionSide | undefined;
     for (const element of path) {
+      if (lineNumber != null && lineIndex != null && eventSide != null) {
+        break;
+      }
       if (!(element instanceof HTMLElement)) {
         continue;
       }
-      if (element.hasAttribute('data-column-number')) {
-        isNumberColumn = true;
-        continue;
-      }
-      if (element.hasAttribute('data-line')) {
+
+      if (element.hasAttribute('data-line-index')) {
+        isNumberColumn = element.hasAttribute('data-column-number');
         lineNumber = this.getLineNumber(element);
-        lineIndex = this.getLineIndex(
+        lineIndex = this.parseLineIndex(
           element,
-          this.pre?.dataset.type === 'split'
+          this.pre.getAttribute('data-diff-type') === 'split'
         );
-        if (element.dataset.lineType === 'change-deletion') {
+        const lineType = element.getAttribute('data-line-type');
+        if (lineType === 'change-deletion') {
           eventSide = 'deletions';
-        } else if (element.dataset.lineType === 'change-additions') {
+        } else if (lineType === 'change-additions') {
           eventSide = 'additions';
         }
-        // if we can't pull out an index or line number, we can't do anything.
-        if (lineIndex == null || lineNumber == null) {
-          lineIndex = undefined;
-          lineNumber = undefined;
-          break;
-        }
-        // If we already have an eventSide, we done computin
-        if (eventSide != null) {
-          break;
-        } else {
-          // context type lines will need to be discovered higher up
-          // at the data-code level
-        }
         continue;
       }
-      if (element.hasAttribute('data-code')) {
-        eventSide ??= element.hasAttribute('data-deletions')
+
+      if (eventSide == null && element.hasAttribute('data-code')) {
+        eventSide = element.hasAttribute('data-deletions')
           ? 'deletions'
-          : // context in unified style are assumed to be additions based on
-            // their line numbers
-            'additions';
-        // If we got to the code element, we def done, son
+          : element.hasAttribute('data-additions')
+            ? 'additions'
+            : undefined;
         break;
       }
     }
+
     if (
       (eventType === 'click' && !isNumberColumn) ||
       lineIndex == null ||
@@ -433,22 +424,28 @@ export class LineSelectionManager {
     return {
       lineIndex,
       lineNumber,
-      // Normally this shouldn't hit unless we broke early for whatever reason,
-      // but for types lets ensure it's additions if undefined
+      // Default side to 'additions' if we were unable to get a side,
+      // otherwise later on we risk the side getting inverted in future if the
+      // selection expands into a 'deletions' side
       eventSide: eventSide ?? 'additions',
     };
   }
 
   private getLineNumber(element: HTMLElement): number | undefined {
-    const lineNumber = parseInt(element.dataset.line ?? '', 10);
+    const lineNumber = parseInt(
+      element.getAttribute('data-column-number') ??
+        element.getAttribute('data-line') ??
+        '',
+      10
+    );
     return !Number.isNaN(lineNumber) ? lineNumber : undefined;
   }
 
-  private getLineIndex(
+  private parseLineIndex(
     element: HTMLElement,
     split: boolean
   ): number | undefined {
-    const lineIndexes = (element.dataset.lineIndex ?? '')
+    const lineIndexes = (element.getAttribute('data-line-index') ?? '')
       .split(',')
       .map((value) => parseInt(value))
       .filter((value) => !Number.isNaN(value));
@@ -460,32 +457,22 @@ export class LineSelectionManager {
     }
     return undefined;
   }
-
-  private getLineSideFromElement(element: HTMLElement): SelectionSide {
-    if (element.dataset.lineType === 'change-deletion') {
-      return 'deletions';
-    }
-    if (element.dataset.lineType === 'change-addition') {
-      return 'additions';
-    }
-    const parent = element.closest('[data-code]');
-    if (!(parent instanceof HTMLElement)) {
-      return 'additions';
-    }
-    return parent.hasAttribute('data-deletions') ? 'deletions' : 'additions';
-  }
 }
 
-export function pluckLineSelectionOptions({
-  enableLineSelection,
-  onLineSelected,
-  onLineSelectionStart,
-  onLineSelectionEnd,
-}: LineSelectionOptions): LineSelectionOptions {
+export function pluckLineSelectionOptions(
+  {
+    enableLineSelection,
+    onLineSelected,
+    onLineSelectionStart,
+    onLineSelectionEnd,
+  }: LineSelectionOptions,
+  getLineIndex?: GetLineIndexUtility
+): LineSelectionOptions {
   return {
     enableLineSelection,
     onLineSelected,
     onLineSelectionStart,
     onLineSelectionEnd,
+    getLineIndex,
   };
 }

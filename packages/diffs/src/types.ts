@@ -329,6 +329,9 @@ export type HunkLineType =
 
 export type ThemeTypes = 'system' | 'light' | 'dark';
 
+/**
+ * The `'custom'` variant is deprecated and will be removed in a future version.
+ */
 export type HunkSeparators = 'simple' | 'metadata' | 'line-info' | 'custom';
 
 export type LineDiffTypes = 'word-alt' | 'word' | 'char' | 'none';
@@ -379,6 +382,7 @@ export interface PrePropertiesConfig extends Required<
     | 'themeType'
   >
 > {
+  type: 'diff' | 'file';
   split: boolean;
   themeStyles: string;
   totalLines: number;
@@ -401,6 +405,7 @@ export type RenderFileMetadata = (
 export type ExtensionFormatMap = Record<string, SupportedLanguages | undefined>;
 
 export type AnnotationSide = 'deletions' | 'additions';
+export type SelectionSide = 'deletions' | 'additions';
 
 type OptionalMetadata<T> = T extends undefined
   ? { metadata?: undefined }
@@ -453,7 +458,7 @@ export interface LineEventBaseProps {
   type: 'line';
   lineNumber: number;
   lineElement: HTMLElement;
-  numberElement: HTMLElement | undefined;
+  numberElement: HTMLElement;
   numberColumn: boolean;
 }
 
@@ -489,11 +494,13 @@ export interface ObservedGridNodes {
   numberWidth: number;
 }
 
+export type CodeColumnType = 'unified' | 'additions' | 'deletions';
+
 export interface HunkData {
   slotName: string;
   hunkIndex: number;
   lines: number;
-  type: 'additions' | 'deletions' | 'unified';
+  type: CodeColumnType;
   expandable?: {
     chunked: boolean;
     up: boolean;
@@ -530,12 +537,20 @@ export interface HunkExpansionRegion {
   fromEnd: number;
 }
 
-export interface ForcePlainTextOptions {
+export interface ForceDiffPlainTextOptions {
   forcePlainText: boolean;
   startingLine?: number;
   totalLines?: number;
   expandedHunks?: Map<number, HunkExpansionRegion> | true;
   collapsedContextThreshold?: number;
+}
+
+export interface ForceFilePlainTextOptions {
+  forcePlainText: boolean;
+  startingLine?: number;
+  totalLines?: number;
+  // Pre-split lines for caching in windowing scenarios
+  lines?: string[];
 }
 
 export interface RenderFileOptions {
@@ -590,4 +605,12 @@ export interface RenderWindow {
 export interface VirtualWindowSpecs {
   top: number;
   bottom: number;
+}
+
+export interface VirtualFileMetrics {
+  hunkLineCount: number;
+  lineHeight: number;
+  diffHeaderHeight: number;
+  hunkSeparatorHeight: number;
+  fileGap: number;
 }
