@@ -32,6 +32,8 @@ export interface FileContents {
   cacheKey?: string;
 }
 
+export type HighlighterTypes = 'shiki-js' | 'shiki-wasm';
+
 export type {
   BundledLanguage,
   CodeToHastOptions,
@@ -350,6 +352,7 @@ export interface BaseCodeOptions {
   disableVirtualizationBuffers?: boolean;
 
   // Shiki config options, ignored if you're using a WorkerPoolManager
+  preferredHighlighter?: HighlighterTypes;
   useCSSClasses?: boolean;
   tokenizeMaxLineLength?: number;
 

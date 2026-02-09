@@ -13,6 +13,7 @@ import type {
   DiffsHighlighter,
   FileContents,
   FileDiffMetadata,
+  HighlighterTypes,
   HunkExpansionRegion,
   RenderDiffOptions,
   RenderDiffResult,
@@ -69,6 +70,7 @@ interface ThemeSubscriber {
 
 export class WorkerPoolManager {
   private highlighter: DiffsHighlighter | undefined;
+  private readonly preferredHighlighter: HighlighterTypes;
   private renderOptions: WorkerRenderingOptions;
   private initialized: Promise<void> | boolean = false;
   private workers: ManagedWorker[] = [];
@@ -96,8 +98,10 @@ export class WorkerPoolManager {
       theme = DEFAULT_THEMES,
       lineDiffType = 'word-alt',
       tokenizeMaxLineLength = 1000,
+      preferredHighlighter = 'shiki-js',
     }: WorkerInitializationRenderOptions
   ) {
+    this.preferredHighlighter = preferredHighlighter;
     this.renderOptions = { theme, lineDiffType, tokenizeMaxLineLength };
     this.fileCache = new LRUMapPkg.LRUMap(options.totalASTLRUCacheSize ?? 100);
     this.diffCache = new LRUMapPkg.LRUMap(options.totalASTLRUCacheSize ?? 100);
@@ -182,7 +186,11 @@ export class WorkerPoolManager {
       await this.setRenderOptionsOnWorkers(newRenderOptions, resolvedThemes);
     } else {
       const [highlighter] = await Promise.all([
-        getSharedHighlighter({ themes: themeNames, langs: ['text'] }),
+        getSharedHighlighter({
+          themes: themeNames,
+          langs: ['text'],
+          preferredHighlighter: this.preferredHighlighter,
+        }),
         this.setRenderOptionsOnWorkers(newRenderOptions, resolvedThemes),
       ]);
       this.highlighter = highlighter;
@@ -330,7 +338,11 @@ export class WorkerPoolManager {
             }
 
             const [highlighter] = await Promise.all([
-              getSharedHighlighter({ themes, langs: ['text', ...languages] }),
+              getSharedHighlighter({
+                themes,
+                langs: ['text', ...languages],
+                preferredHighlighter: this.preferredHighlighter,
+              }),
               this.initializeWorkers(resolvedThemes, resolvedLanguages),
             ]);
 
@@ -400,6 +412,7 @@ export class WorkerPoolManager {
               type: 'initialize',
               id,
               renderOptions: this.renderOptions,
+              preferredHighlighter: this.preferredHighlighter,
               resolvedThemes,
               resolvedLanguages,
             },
