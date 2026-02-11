@@ -1,32 +1,79 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 
-import { FileTree, type FileTreeOptions } from '../../FileTree';
+import {
+  FileTree,
+  type FileTreeOptions,
+  type FileTreeSelectionItem,
+  type FileTreeStateConfig,
+} from '../../FileTree';
 
 interface UseFileTreeInstanceProps {
   options: FileTreeOptions;
   prerenderedHTML: string | undefined;
+
+  // Default (uncontrolled) state
+  defaultExpandedItems?: string[];
+  defaultSelectedItems?: string[];
+
+  // Controlled state
+  expandedItems?: string[];
+  selectedItems?: string[];
+  onExpandedItemsChange?: (items: string[]) => void;
+  onSelectedItemsChange?: (items: string[]) => void;
+  onSelection?: (items: FileTreeSelectionItem[]) => void;
 }
 
 interface UseFileTreeInstanceReturn {
-  ref(node: HTMLElement | null): void;
+  ref(node: HTMLElement | null): void | (() => void);
 }
 
 export function useFileTreeInstance({
   options,
   prerenderedHTML,
+  defaultExpandedItems,
+  defaultSelectedItems,
+  expandedItems,
+  selectedItems,
+  onExpandedItemsChange,
+  onSelectedItemsChange,
+  onSelection,
 }: UseFileTreeInstanceProps): UseFileTreeInstanceReturn {
   const containerRef = useRef<HTMLElement | null>(null);
   const instanceRef = useRef<FileTree | null>(null);
 
+  // Keep a ref to the latest state-related props so the ref callback can read
+  // them at creation time without including them as useMemo deps.
+  const statePropsRef = useRef<FileTreeStateConfig>({
+    expandedItems,
+    selectedItems,
+    onExpandedItemsChange,
+    onSelectedItemsChange,
+    onSelection,
+    defaultExpandedItems,
+    defaultSelectedItems,
+  });
+  statePropsRef.current = {
+    expandedItems,
+    selectedItems,
+    onExpandedItemsChange,
+    onSelectedItemsChange,
+    onSelection,
+    defaultExpandedItems,
+    defaultSelectedItems,
+  };
+
   // Ref callback that handles mount/unmount and re-runs when options change.
   // By including options in the dependency array, the callback identity changes
-  // when options change, causing React to call cleanup then re-invoke with the
+  // when structural options change, causing React to call cleanup then re-invoke with the
   // same DOM node - allowing us to detect and handle options changes.
   //
   // React 19: Return cleanup function, called when ref changes or element unmounts.
   const ref = useCallback(
     (fileTreeContainer: HTMLElement | null) => {
       if (fileTreeContainer == null) {
+        instanceRef.current?.cleanUp();
+        instanceRef.current = null;
+        containerRef.current = null;
         return;
       }
 
@@ -59,10 +106,22 @@ export function useFileTreeInstance({
       };
 
       const createInstance = (existingId?: string): FileTree => {
-        return new FileTree({
-          ...options,
-          id: existingId,
-        });
+        const sp = statePropsRef.current;
+        return new FileTree(
+          { ...options, id: existingId },
+          {
+            // Use controlled values as initial state, but do NOT pass them as
+            // controlled `expandedItems`/`selectedItems` — those bake into
+            // config.state in the Preact Root and override imperative updates.
+            // Subsequent controlled updates flow via the useEffect below calling
+            // setExpandedItems/setSelectedItems imperatively.
+            defaultExpandedItems: sp.defaultExpandedItems ?? sp.expandedItems,
+            defaultSelectedItems: sp.defaultSelectedItems ?? sp.selectedItems,
+            onExpandedItemsChange: sp.onExpandedItemsChange,
+            onSelectedItemsChange: sp.onSelectedItemsChange,
+            onSelection: sp.onSelection,
+          }
+        );
       };
 
       const existingFileTreeId = getExistingFileTreeId();
@@ -82,9 +141,9 @@ export function useFileTreeInstance({
         // Initial mount
         containerRef.current = fileTreeContainer;
 
-        // Check if we have prerendered HTML to hydrate
-        const hasPrerenderedContent =
-          prerenderedHTML != null && existingFileTreeId != null;
+        // If markup already exists in the shadow root (typically via SSR
+        // declarative shadow DOM), hydrate it.
+        const hasPrerenderedContent = existingFileTreeId != null;
 
         instanceRef.current = createInstance(existingFileTreeId);
 
@@ -92,7 +151,6 @@ export function useFileTreeInstance({
           // SSR: hydrate the prerendered HTML
           void instanceRef.current.hydrate({
             fileTreeContainer,
-            prerenderedHTML,
           });
         } else {
           // CSR: render from scratch
@@ -108,6 +166,29 @@ export function useFileTreeInstance({
     },
     [options, prerenderedHTML]
   );
+
+  // Sync controlled expanded items imperatively (no tree recreation)
+  useEffect(() => {
+    if (expandedItems !== undefined && instanceRef.current != null) {
+      instanceRef.current.setExpandedItems(expandedItems);
+    }
+  }, [expandedItems]);
+
+  // Sync controlled selected items imperatively (no tree recreation)
+  useEffect(() => {
+    if (selectedItems !== undefined && instanceRef.current != null) {
+      instanceRef.current.setSelectedItems(selectedItems);
+    }
+  }, [selectedItems]);
+
+  // Update callbacks without re-rendering Preact
+  useEffect(() => {
+    instanceRef.current?.setCallbacks({
+      onExpandedItemsChange,
+      onSelectedItemsChange,
+      onSelection,
+    });
+  }, [onExpandedItemsChange, onSelectedItemsChange, onSelection]);
 
   return { ref };
 }

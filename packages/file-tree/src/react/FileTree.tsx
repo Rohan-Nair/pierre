@@ -2,9 +2,10 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import { useEffect } from 'react';
 
 import { FILE_TREE_TAG_NAME } from '../constants';
-import type { FileTreeOptions } from '../FileTree';
+import type { FileTreeOptions, FileTreeSelectionItem } from '../FileTree';
 import { useFileTreeInstance } from './utils/useFileTreeInstance';
 
 function renderFileTreeChildren(): ReactNode {
@@ -35,6 +36,23 @@ export interface FileTreeProps {
   className?: string;
   style?: React.CSSProperties;
   prerenderedHTML?: string;
+  /**
+   * If provided, attach/hydrate into an existing <file-tree-container> element
+   * (typically rendered by a server component). In this mode, this component
+   * renders nothing.
+   */
+  containerId?: string;
+
+  // Default (uncontrolled) state
+  defaultExpandedItems?: string[];
+  defaultSelectedItems?: string[];
+
+  // Controlled state
+  expandedItems?: string[];
+  selectedItems?: string[];
+  onExpandedItemsChange?: (items: string[]) => void;
+  onSelectedItemsChange?: (items: string[]) => void;
+  onSelection?: (items: FileTreeSelectionItem[]) => void;
 }
 
 export function FileTree({
@@ -42,9 +60,44 @@ export function FileTree({
   className,
   style,
   prerenderedHTML,
+  containerId,
+  defaultExpandedItems,
+  defaultSelectedItems,
+  expandedItems,
+  selectedItems,
+  onExpandedItemsChange,
+  onSelectedItemsChange,
+  onSelection,
 }: FileTreeProps): React.JSX.Element {
   const children = renderFileTreeChildren();
-  const { ref } = useFileTreeInstance({ options, prerenderedHTML });
+  const { ref } = useFileTreeInstance({
+    options,
+    prerenderedHTML,
+    defaultExpandedItems,
+    defaultSelectedItems,
+    expandedItems,
+    selectedItems,
+    onExpandedItemsChange,
+    onSelectedItemsChange,
+    onSelection,
+  });
+
+  useEffect(() => {
+    if (containerId == null) return;
+    const el = document.getElementById(containerId);
+    if (!(el instanceof HTMLElement)) {
+      return;
+    }
+    const cleanup = ref(el);
+    return () => {
+      if (typeof cleanup === 'function') cleanup();
+      else ref(null);
+    };
+  }, [containerId, ref]);
+
+  if (containerId != null) {
+    return <></>;
+  }
   return (
     <FILE_TREE_TAG_NAME ref={ref} className={className} style={style}>
       {templateRender(children, prerenderedHTML)}

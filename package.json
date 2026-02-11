@@ -55,6 +55,7 @@
       "hast-util-to-html": "9.0.5",
       "hast-util-to-string": "3.0.1",
       "husky": "^9.1.7",
+      "jsdom": "26.1.0",
       "lru_map": "0.4.1",
       "lucide-react": "0.545.0",
       "next": "16.1.1",
@@ -89,7 +90,7 @@
   },
   "type": "module",
   "scripts": {
-    "ws": "bun --silent scripts/ws.js",
+    "ws": "bun --silent scripts/ws.ts",
     "tsc": "bun run ws \"*\" tsc",
     "clean": "bunx del-cli 'apps/*/.{next,source}' 'packages/*/dist' 'apps/*/tsconfig.tsbuildinfo' 'packages/*/tsconfig.tsbuildinfo'",
     "clean:all": "bun run clean && bunx del-cli '**/node_modules'",

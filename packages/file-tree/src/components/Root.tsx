@@ -9,20 +9,33 @@ import type { JSX } from 'preact';
 import { Fragment } from 'preact';
 import { useEffect, useMemo, useRef } from 'preact/hooks';
 
+import { FLATTENED_PREFIX } from '../constants';
 import { fileTreeSearchFeature } from '../features/fileTreeSearchFeature';
-import type { FileTreeOptions, FileTreeSelectionItem } from '../FileTree';
+import type {
+  FileTreeCallbacks,
+  FileTreeHandle,
+  FileTreeOptions,
+  FileTreeSelectionItem,
+  FileTreeStateConfig,
+} from '../FileTree';
 import { generateLazyDataLoader } from '../loader/lazy';
 import { generateSyncDataLoader } from '../loader/sync';
 import type { FileTreeNode } from '../types';
+import { controlledExpandedPathsToExpandedIds } from '../utils/controlledExpandedState';
+import {
+  expandPathsWithAncestors,
+  filterOrphanedPaths,
+} from '../utils/expandPaths';
 import { fileListToTree } from '../utils/fileListToTree';
 import { useTree } from './hooks/useTree';
 import { Icon } from './Icon';
 
 export interface FileTreeRootProps {
   fileTreeOptions: FileTreeOptions;
+  stateConfig?: FileTreeStateConfig;
+  handleRef?: { current: FileTreeHandle | null };
+  callbacksRef?: { current: FileTreeCallbacks };
 }
-
-const FLATTENED_PREFIX = 'f::';
 
 const getSelectionPath = (path: string): string =>
   path.startsWith(FLATTENED_PREFIX)
@@ -58,31 +71,37 @@ function FlattenedDirectoryName({
   );
 }
 
-export function Root({ fileTreeOptions }: FileTreeRootProps): JSX.Element {
+export function Root({
+  fileTreeOptions,
+  stateConfig,
+  handleRef,
+  callbacksRef,
+}: FileTreeRootProps): JSX.Element {
   'use no memo';
   const { config, files, flattenEmptyDirectories, useLazyDataLoader } =
     fileTreeOptions;
+
+  const treeDomId = useMemo(() => {
+    const base = fileTreeOptions.id ?? 'ft';
+    const safe = base.replace(/[^A-Za-z0-9_-]/g, '_');
+    return `ft-${safe}`;
+  }, [fileTreeOptions.id]);
+  const getItemDomId = (itemId: string) => `${treeDomId}-${itemId}`;
+
   const treeData = useMemo(() => fileListToTree(files), [files]);
-  const restTreeConfig = useMemo(() => {
-    if (config == null) {
-      return {};
-    }
 
-    type TreeStateConfig = {
-      expandedItems?: string[];
-      selectedItems?: string[];
-      focusedItem?: string | null;
-      renamingItem?: string | null;
-      checkedItems?: string[];
-      loadingCheckPropagationItems?: string[];
-      [key: string]: unknown;
-    };
-
-    const pathToId = new Map<string, string>();
+  // Build path↔id maps from treeData
+  const { pathToId, idToPath } = useMemo(() => {
+    const p2i = new Map<string, string>();
+    const i2p = new Map<string, string>();
     for (const [id, node] of Object.entries(treeData)) {
-      pathToId.set(node.path, id);
+      p2i.set(node.path, id);
+      i2p.set(id, node.path);
     }
+    return { pathToId: p2i, idToPath: i2p };
+  }, [treeData]);
 
+  const restTreeConfig = useMemo(() => {
     const mapId = (item: string): string => {
       if (treeData[item] != null) {
         return item;
@@ -103,6 +122,16 @@ export function Root({ fileTreeOptions }: FileTreeRootProps): JSX.Element {
         return mappedItem;
       });
       return changed ? mapped : items;
+    };
+
+    type TreeStateConfig = {
+      expandedItems?: string[];
+      selectedItems?: string[];
+      focusedItem?: string | null;
+      renamingItem?: string | null;
+      checkedItems?: string[];
+      loadingCheckPropagationItems?: string[];
+      [key: string]: unknown;
     };
 
     const mapState = (state: TreeStateConfig | undefined) => {
@@ -157,21 +186,107 @@ export function Root({ fileTreeOptions }: FileTreeRootProps): JSX.Element {
       return { state: changed ? nextState : state, changed };
     };
 
-    const initialState = mapState(config.initialState as TreeStateConfig);
-    const state = mapState(config.state as TreeStateConfig);
+    // --- Map top-level state props into config ---
+    const baseConfig = config ?? {};
+
+    const mapPathToId = (path: string): string | undefined => {
+      // If the caller explicitly passes a flattened path, respect it.
+      if (path.startsWith(FLATTENED_PREFIX)) {
+        return pathToId.get(path);
+      }
+
+      const shouldFlatten = flattenEmptyDirectories === true;
+
+      // Only prefer flattened IDs when the tree is actually rendering flattened
+      // directories. Otherwise, selecting a path that *could* be flattened would
+      // target a hidden node and the visible folder would not be marked selected.
+      if (shouldFlatten) {
+        return pathToId.get(FLATTENED_PREFIX + path) ?? pathToId.get(path);
+      }
+      return pathToId.get(path);
+    };
+
+    const mapPathsToIds = (
+      paths: string[] | undefined
+    ): string[] | undefined => {
+      if (paths == null) return undefined;
+      const ids = paths
+        .map(mapPathToId)
+        .filter((id): id is string => id != null);
+      return ids.length > 0 ? ids : [];
+    };
+
+    // Merge top-level defaultExpandedItems/defaultSelectedItems into config.initialState
+    const topLevelInitialExpanded = stateConfig?.defaultExpandedItems;
+    const topLevelInitialSelected = stateConfig?.defaultSelectedItems;
+    const topLevelInitialExpandedIds =
+      topLevelInitialExpanded != null
+        ? expandPathsWithAncestors(topLevelInitialExpanded, pathToId, {
+            flattenEmptyDirectories,
+          })
+        : undefined;
+    const topLevelInitialSelectedIds = mapPathsToIds(topLevelInitialSelected);
+    const hasTopLevelInitial =
+      topLevelInitialExpanded != null || topLevelInitialSelected != null;
+
+    const mergedInitialState = hasTopLevelInitial
+      ? {
+          ...(baseConfig.initialState as TreeStateConfig | undefined),
+          ...(topLevelInitialExpandedIds != null && {
+            expandedItems: topLevelInitialExpandedIds,
+          }),
+          ...(topLevelInitialSelectedIds != null && {
+            selectedItems: topLevelInitialSelectedIds,
+          }),
+        }
+      : (baseConfig.initialState as TreeStateConfig | undefined);
+
+    // Merge top-level expandedItems/selectedItems into config.state
+    const topLevelExpanded = stateConfig?.expandedItems;
+    const topLevelSelected = stateConfig?.selectedItems;
+    const topLevelExpandedIds =
+      topLevelExpanded != null
+        ? controlledExpandedPathsToExpandedIds(topLevelExpanded, pathToId, {
+            flattenEmptyDirectories,
+          })
+        : undefined;
+    const topLevelSelectedIds = mapPathsToIds(topLevelSelected);
+    const hasTopLevelState =
+      topLevelExpanded != null || topLevelSelected != null;
+
+    const mergedState = hasTopLevelState
+      ? {
+          ...(baseConfig.state as TreeStateConfig | undefined),
+          ...(topLevelExpandedIds != null && {
+            expandedItems: topLevelExpandedIds,
+          }),
+          ...(topLevelSelectedIds != null && {
+            selectedItems: topLevelSelectedIds,
+          }),
+        }
+      : (baseConfig.state as TreeStateConfig | undefined);
+
+    const configWithMergedState = {
+      ...baseConfig,
+      ...(mergedInitialState != null && { initialState: mergedInitialState }),
+      ...(mergedState != null && { state: mergedState }),
+    };
+
+    const initialState = mapState(
+      configWithMergedState.initialState as TreeStateConfig
+    );
+    const state = mapState(configWithMergedState.state as TreeStateConfig);
 
     if (!initialState.changed && !state.changed) {
-      return config;
+      return configWithMergedState;
     }
 
     return {
-      ...config,
+      ...configWithMergedState,
       ...(initialState.state != null && { initialState: initialState.state }),
       ...(state.state != null && { state: state.state }),
     };
-  }, [config, treeData]);
-  const treeDomId = 'ft';
-  const getItemDomId = (itemId: string) => `${treeDomId}-${itemId}`;
+  }, [config, treeData, pathToId, stateConfig, flattenEmptyDirectories]);
   const dataLoader = useMemo(
     () =>
       useLazyDataLoader === true
@@ -217,11 +332,21 @@ export function Root({ fileTreeOptions }: FileTreeRootProps): JSX.Element {
     ],
   });
 
+  // Populate handleRef so the FileTree class can call tree methods directly
+  useEffect(() => {
+    if (handleRef == null) return;
+    handleRef.current = { tree, pathToId, idToPath };
+    return () => {
+      handleRef.current = null;
+    };
+  }, [tree, pathToId, idToPath, handleRef]);
+
+  // --- Selection change callback ---
   const selectionSnapshotRef = useRef<string | null>(null);
   const selectionSnapshot = tree.getState().selectedItems?.join('|') ?? '';
 
-  const onSelection = fileTreeOptions.onSelection;
   useEffect(() => {
+    const onSelection = callbacksRef?.current.onSelection;
     if (onSelection == null) {
       return;
     }
@@ -244,7 +369,75 @@ export function Root({ fileTreeOptions }: FileTreeRootProps): JSX.Element {
         };
       });
     onSelection(selection);
-  }, [selectionSnapshot, onSelection, tree]);
+  }, [selectionSnapshot, callbacksRef, tree]);
+
+  // --- Expanded items change callback ---
+  const expandedSnapshotRef = useRef<string | null>(null);
+  const expandedSnapshot = tree.getState().expandedItems?.join('|') ?? '';
+
+  useEffect(() => {
+    const onExpandedItemsChange = callbacksRef?.current.onExpandedItemsChange;
+    if (onExpandedItemsChange == null) {
+      return;
+    }
+    if (expandedSnapshotRef.current == null) {
+      expandedSnapshotRef.current = expandedSnapshot;
+      return;
+    }
+    if (expandedSnapshotRef.current === expandedSnapshot) {
+      return;
+    }
+
+    expandedSnapshotRef.current = expandedSnapshot;
+    const ids = tree.getState().expandedItems ?? [];
+    const paths = [
+      ...new Set(
+        ids
+          .map((id) => idToPath.get(id))
+          .filter((path): path is string => path != null)
+          .map(getSelectionPath)
+      ),
+    ];
+    const effectivePaths = filterOrphanedPaths(
+      paths,
+      pathToId,
+      flattenEmptyDirectories
+    );
+    onExpandedItemsChange(effectivePaths);
+  }, [
+    expandedSnapshot,
+    callbacksRef,
+    tree,
+    idToPath,
+    pathToId,
+    flattenEmptyDirectories,
+  ]);
+
+  // --- Selected items change callback ---
+  const selectedSnapshotRef = useRef<string | null>(null);
+  const selectedSnapshot = tree.getState().selectedItems?.join('|') ?? '';
+
+  useEffect(() => {
+    const onSelectedItemsChange = callbacksRef?.current.onSelectedItemsChange;
+    if (onSelectedItemsChange == null) {
+      return;
+    }
+    if (selectedSnapshotRef.current == null) {
+      selectedSnapshotRef.current = selectedSnapshot;
+      return;
+    }
+    if (selectedSnapshotRef.current === selectedSnapshot) {
+      return;
+    }
+
+    selectedSnapshotRef.current = selectedSnapshot;
+    const ids = tree.getState().selectedItems ?? [];
+    const paths = ids
+      .map((id) => idToPath.get(id))
+      .filter((path): path is string => path != null)
+      .map(getSelectionPath);
+    onSelectedItemsChange(paths);
+  }, [selectedSnapshot, callbacksRef, tree, idToPath]);
 
   const { onChange, ...origSearchInputProps } =
     tree.getSearchInputElementProps();
