@@ -87,6 +87,7 @@ export async function renderMDX({ filePath, scope = {} }: RenderMDXOptions) {
     components: defaultComponents,
     options: {
       parseFrontmatter: true,
+      blockJS: false,
       mdxOptions: {
         remarkPlugins: [remarkGfm, remarkTocIgnore],
         rehypePlugins: [[rehypeHierarchicalSlug, { levels: [2, 3, 4] }]],
