@@ -1,6 +1,6 @@
 'use client';
 
-import { IconBook, IconCheck, IconCopyFill } from '@pierre/icons';
+import { IconBook, IconCheck, IconCopyFill, IconSparkles } from '@pierre/icons';
 import Link from 'next/link';
 import { useState } from 'react';
 
@@ -90,6 +90,17 @@ export function Hero() {
           <Link href="/docs">
             <IconBook />
             Documentation
+          </Link>
+        </Button>
+        <Button
+          variant="secondary"
+          asChild
+          size="xl"
+          className="h-11 rounded-lg text-sm md:h-12 md:text-base"
+        >
+          <Link href="/playground">
+            <IconSparkles />
+            Playground
           </Link>
         </Button>
       </div>
